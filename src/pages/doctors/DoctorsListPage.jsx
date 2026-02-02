@@ -183,14 +183,13 @@ const DoctorsListPage = () => {
             </div>
 
             <ConfirmDialog 
-                isOpen={!!deleteId}
-                onClose={() => setDeleteId(null)}
+                open={!!deleteId}
+                onCancel={() => setDeleteId(null)}
                 onConfirm={handleDelete}
                 title="Delete Doctor"
-                description="Are you sure you want to delete this doctor? This action cannot be undone."
-                confirmText="Delete"
-                dangers
-                loading={deleting}
+                message="Are you sure you want to delete this doctor? This action cannot be undone."
+                confirmText={deleting ? "Deleting..." : "Delete"}
+                variant="danger"
             />
         </div>
     );
