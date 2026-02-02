@@ -15,6 +15,9 @@ import EmptyState from '../components/EmptyState';
 import { Construction } from 'lucide-react';
 import SchedulesListPage from '../pages/schedules/SchedulesListPage';
 import ScheduleFormPage from '../pages/schedules/ScheduleFormPage';
+import AppointmentsListPage from '../pages/appointments/AppointmentsListPage';
+import AppointmentFormPage from '../pages/appointments/AppointmentFormPage';
+import AppointmentDetailsPage from '../pages/appointments/AppointmentDetailsPage';
 
 const PlaceholderPage = ({ title }) => (
     <div>
@@ -58,8 +61,13 @@ const AppRoutes = () => {
         <Route path="/schedules/new" element={<ScheduleFormPage />} />
         <Route path="/schedules/:id/edit" element={<ScheduleFormPage />} />
 
+        {/* Appointments Routes */}
+        <Route path="/appointments" element={<AppointmentsListPage />} />
+        <Route path="/appointments/new" element={<AppointmentFormPage />} />
+        <Route path="/appointments/:id" element={<AppointmentDetailsPage />} />
+        <Route path="/appointments/:id/edit" element={<AppointmentFormPage />} />
+
         {/* Placeholder Routes */}
-        <Route path="/appointments" element={<PlaceholderPage title="Appointments" />} />
         <Route path="/consultations" element={<PlaceholderPage title="Consultations" />} />
         <Route path="/prescriptions" element={<PlaceholderPage title="Prescriptions" />} />
         <Route path="/payments" element={<PlaceholderPage title="Payments" />} />
