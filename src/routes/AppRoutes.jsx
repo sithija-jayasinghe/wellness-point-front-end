@@ -8,6 +8,9 @@ import ClinicsListPage from '../pages/clinics/ClinicsListPage';
 import ClinicFormPage from '../pages/clinics/ClinicFormPage';
 import DoctorsListPage from '../pages/doctors/DoctorsListPage';
 import DoctorFormPage from '../pages/doctors/DoctorFormPage';
+import PatientsListPage from '../pages/patients/PatientsListPage';
+import PatientFormPage from '../pages/patients/PatientFormPage';
+import PatientHistoryPage from '../pages/patients/PatientHistoryPage';
 import EmptyState from '../components/EmptyState';
 import { Construction } from 'lucide-react';
 
@@ -42,8 +45,13 @@ const AppRoutes = () => {
         <Route path="/doctors/new" element={<DoctorFormPage />} />
         <Route path="/doctors/:id/edit" element={<DoctorFormPage />} />
 
+        {/* Patients Routes */}
+        <Route path="/patients" element={<PatientsListPage />} />
+        <Route path="/patients/new" element={<PatientFormPage />} />
+        <Route path="/patients/:id/edit" element={<PatientFormPage />} />
+        <Route path="/patients/:id/history" element={<PatientHistoryPage />} />
+
         {/* Placeholder Routes */}
-        <Route path="/patients" element={<PlaceholderPage title="Patients" />} />
         <Route path="/schedules" element={<PlaceholderPage title="Schedules" />} />
         <Route path="/appointments" element={<PlaceholderPage title="Appointments" />} />
         <Route path="/consultations" element={<PlaceholderPage title="Consultations" />} />
