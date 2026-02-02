@@ -29,6 +29,9 @@ import RefundFormPage from '../pages/refunds/RefundFormPage';
 import NotificationsPage from '../pages/notifications/NotificationsPage';
 import AuditLogsPage from '../pages/audit/AuditLogsPage';
 
+import UsersListPage from '../pages/users/UsersListPage';
+import UserFormPage from '../pages/users/UserFormPage';
+
 const PlaceholderPage = ({ title }) => (
     <div>
         <h1 className="text-2xl font-bold text-gray-900 mb-6">{title}</h1>
@@ -107,8 +110,11 @@ const AppRoutes = () => {
         <Route path="/audit-logs" element={<PlaceholderPage title="Audit Logs" />} />
         <Route path="/staff" element={<PlaceholderPage title="Staff" />} />
         
-        {/* Admin Only Routes - In real app, wrap with Role Check component */}
-        <Route path="/users" element={<PlaceholderPage title="Users Management" />} />
+        {/* Admin Only Routes */}
+        <Route path="/users" element={<UsersListPage />} />
+        <Route path="/users/new" element={<UserFormPage />} />
+        <Route path="/users/:id/edit" element={<UserFormPage />} />
+        
         <Route path="/roles" element={<PlaceholderPage title="Roles Management" />} />
         <Route path="/permissions" element={<PlaceholderPage title="Permissions Management" />} />
       </Route>
