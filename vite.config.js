@@ -17,6 +17,10 @@ export default defineConfig({
       '/schedule': {
         target: 'http://localhost:8080',
         changeOrigin: true,
+      },
+      '/notification': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
       }
     }
   }
