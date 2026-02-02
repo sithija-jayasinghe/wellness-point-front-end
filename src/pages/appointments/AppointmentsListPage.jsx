@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search, Calendar, Check, X, Trash2, Eye, Edit } from 'lucide-react';
+import { Plus, Search, Calendar, Check, X, Trash2, Eye, Edit, RefreshCw } from 'lucide-react';
 import { getAllAppointments, cancelAppointment, completeAppointment, deleteAppointment } from '../../api/appointments.api';
 import PageHeader from '../../components/PageHeader';
 import Button from '../../components/Button';
@@ -139,9 +139,14 @@ const AppointmentsListPage = () => {
                 title="Appointments" 
                 description="Manage patient appointments."
                 actions={
-                    <Button onClick={() => navigate('/appointments/new')} icon={Plus}>
-                        Book Appointment
-                    </Button>
+                    <div className="flex items-center gap-2">
+                        <Button variant="outline" onClick={fetchAppointments} title="Refresh List" icon={RefreshCw}>
+                            Refresh
+                        </Button>
+                        <Button onClick={() => navigate('/appointments/new')} icon={Plus}>
+                            Book Appointment
+                        </Button>
+                    </div>
                 }
             />
 
