@@ -18,8 +18,8 @@ import ScheduleFormPage from '../pages/schedules/ScheduleFormPage';
 import AppointmentsListPage from '../pages/appointments/AppointmentsListPage';
 import AppointmentFormPage from '../pages/appointments/AppointmentFormPage';
 import AppointmentDetailsPage from '../pages/appointments/AppointmentDetailsPage';
-import PrescriptionsListPage from '../pages/prescriptions/PrescriptionsListPage';
-import PrescriptionFormPage from '../pages/prescriptions/PrescriptionFormPage';
+import ConsultationsListPage from '../pages/consultations/ConsultationsListPage';
+import ConsultationFormPage from '../pages/consultations/ConsultationFormPage';
 
 const PlaceholderPage = ({ title }) => (
     <div>
@@ -69,14 +69,13 @@ const AppRoutes = () => {
         <Route path="/appointments/:id" element={<AppointmentDetailsPage />} />
         <Route path="/appointments/:id/edit" element={<AppointmentFormPage />} />
 
-        {/* Placeholder Routes */}
-        <Route path="/consultations" element={<PlaceholderPage title="Consultations" />} />
-        
-        {/* Prescriptions Routes */}
-        <Route path="/prescriptions" element={<PrescriptionsListPage />} />
-        <Route path="/prescriptions/new" element={<PrescriptionFormPage />} />
-        <Route path="/prescriptions/:id/edit" element={<PrescriptionFormPage />} />
+        {/* Consultations Routes */}
+        <Route path="/consultations" element={<ConsultationsListPage />} />
+        <Route path="/consultations/new" element={<ConsultationFormPage />} />
+        <Route path="/consultations/:id/edit" element={<ConsultationFormPage />} />
 
+        {/* Placeholder Routes */}
+        <Route path="/prescriptions" element={<PlaceholderPage title="Prescriptions" />} />
         <Route path="/payments" element={<PlaceholderPage title="Payments" />} />
         <Route path="/refunds" element={<PlaceholderPage title="Refunds" />} />
         <Route path="/notifications" element={<PlaceholderPage title="Notifications" />} />
