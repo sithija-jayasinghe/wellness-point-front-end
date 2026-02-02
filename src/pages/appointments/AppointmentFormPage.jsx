@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Save } from 'lucide-react';
-import { bookAppointment, updateAppointment, getAllAppointments } from '../../api/appointments.api';
+import { bookAppointment, updateAppointment, getAppointmentById } from '../../api/appointments.api';
 import { getAllPatients } from '../../api/patients.api';
 import { getAllDoctors } from '../../api/doctors.api';
 import { getUser } from '../../auth/authStorage'; 
@@ -71,8 +71,7 @@ const AppointmentFormPage = () => {
 
     const fetchAppointment = async () => {
         try {
-            const appointments = await getAllAppointments();
-            const appointment = appointments.find(a => a.id === parseInt(id) || a.id === id);
+            const appointment = await getAppointmentById(id);
             
             if (appointment) {
                 // Helper to safely parse date from Array or String
@@ -81,7 +80,7 @@ const AppointmentFormPage = () => {
                     if (Array.isArray(d)) {
                          const [year, month, day, hour, minute, second = 0] = d;
                          // Month is 0-indexed in JS Date
-                         const date = new Date(year, month - 1, day, hour, minute, second);
+                         // const date = new Date(year, month - 1, day, hour, minute, second);
                          // Handle timezone offset manually or just string format for input
                          const pad = (n) => String(n).padStart(2, '0');
                          return `${year}-${pad(month)}-${pad(day)}T${pad(hour)}:${pad(minute)}`;
@@ -98,7 +97,7 @@ const AppointmentFormPage = () => {
                     scheduleId: appointment.scheduleId || '',
                     patientId: appointment.patientId || '',
                     appointmentTime: parseDate(appointment.appointmentTime),
-                    status: appointment.status || 'BOOKED'
+                    status: (appointment.status || 'BOOKED').toUpperCase()
                 });
             } else {
                 toast({ title: 'Error', description: 'Appointment not found', variant: 'destructive' });
@@ -156,7 +155,7 @@ const AppointmentFormPage = () => {
                 scheduleId: parseInt(formData.scheduleId),
                 patientId: parseInt(formData.patientId),
                 appointmentTime: formattedTime,
-                status: formData.status // Sending Uppercase status
+                status: formData.status ? formData.status.toUpperCase() : 'BOOKED'
             };
             
             // Note: DTO doesn't have an ID field in RequestBody usually, but if needed for update
