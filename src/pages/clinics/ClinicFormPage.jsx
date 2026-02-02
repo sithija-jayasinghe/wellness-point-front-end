@@ -1,15 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Save } from 'lucide-react';
-import { createClinic, updateClinic, getAllClinics } from '../../api/clinics.api';
-import PageHeader from '../../components/PageHeader';
-import Button from '../../components/Button';
-import Input from '../../components/Input';
-import Select from '../../components/Select';
-import { useToast } from '../../components/useToast';
+import { ChevronDown } from 'lucide-react';
+import { createDoctor, updateDoctor, getAllDoctors } from '../../api/doctors.api';
 import Spinner from '../../components/Spinner';
+import { useToast } from '../../components/useToast';
 
-const ClinicFormPage = () => {
+const DoctorFormPage = () => {
     const navigate = useNavigate();
     const { id } = useParams();
     const isEditMode = !!id;
@@ -17,60 +13,34 @@ const ClinicFormPage = () => {
 
     const [formData, setFormData] = useState({
         name: '',
-        address: '',
-        phone: '',
+        specialization: '',
+        consultationFee: '',
         status: 'Active'
     });
     const [loading, setLoading] = useState(false);
     const [initialLoading, setInitialLoading] = useState(isEditMode);
-    const [errors, setErrors] = useState({});
 
     useEffect(() => {
-        if (isEditMode) {
-            fetchClinic();
-        } else {
-            // Reset form when switching to create mode
-            setFormData({
-                name: '',
-                address: '',
-                phone: '',
-                status: 'Active'
-            });
-            setErrors({});
-            setInitialLoading(false);
-        }
+        if (isEditMode) fetchDoctor();
+        else setInitialLoading(false);
     }, [isEditMode, id]);
 
-    const fetchClinic = async () => {
+    const fetchDoctor = async () => {
         try {
-            // Since we don't have a getById endpoint in the requirements, 
-            // we'll fetch all and find the one we need.
-            const clinics = await getAllClinics();
-            const clinic = clinics.find(c => c.id === parseInt(id) || c.id === id);
-            
-            if (clinic) {
+            const doctors = await getAllDoctors();
+            const doctor = doctors.find(d => d.id === parseInt(id) || d.id === id);
+            if (doctor) {
                 setFormData({
-                    name: clinic.name || '',
-                    address: clinic.address || '',
-                    phone: clinic.phone || '',
-                    status: clinic.status || 'Active'
+                    name: doctor.name || '',
+                    specialization: doctor.specialization || '',
+                    consultationFee: doctor.consultationFee || '',
+                    status: doctor.status || 'Active'
                 });
             } else {
-                toast({
-                    title: 'Error',
-                    description: 'Clinic not found',
-                    variant: 'destructive'
-                });
-                navigate('/clinics');
+                navigate('/doctors');
             }
         } catch (err) {
-            console.error('Failed to fetch clinic details', err);
-            toast({
-                title: 'Error',
-                description: 'Failed to load clinic details',
-                variant: 'destructive'
-            });
-            navigate('/clinics');
+            navigate('/doctors');
         } finally {
             setInitialLoading(false);
         }
@@ -79,168 +49,139 @@ const ClinicFormPage = () => {
     const handleChange = (e) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
-        // Clear error when user types
-        if (errors[name]) {
-            setErrors(prev => ({ ...prev, [name]: null }));
-        }
-    };
-
-    const validate = () => {
-        const newErrors = {};
-        if (!formData.name.trim()) newErrors.name = 'Clinic name is required';
-        if (!formData.phone.trim()) newErrors.phone = 'Phone number is required';
-        if (!formData.address.trim()) newErrors.address = 'Address is required';
-        
-        setErrors(newErrors);
-        return Object.keys(newErrors).length === 0;
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        
-        if (!validate()) return;
-
         try {
             setLoading(true);
+            const dataToSubmit = { ...formData, consultationFee: Number(formData.consultationFee) };
             if (isEditMode) {
-                await updateClinic(id, formData);
-                toast({
-                    title: 'Success',
-                    description: 'Clinic updated successfully',
-                    variant: 'success'
-                });
-                navigate('/clinics');
+                await updateDoctor(id, dataToSubmit);
+                toast({ title: 'Success', description: 'Updated successfully' });
             } else {
-                await createClinic(formData);
-                toast({
-                    title: 'Success',
-                    description: 'Clinic created successfully',
-                    variant: 'success'
-                });
-                // Clear form to allow adding another entry
-                setFormData({
-                    name: '',
-                    address: '',
-                    phone: '',
-                    status: 'Active'
-                });
-                setErrors({});
+                await createDoctor(dataToSubmit);
+                toast({ title: 'Success', description: 'Doctor created' });
             }
+            navigate('/doctors');
         } catch (err) {
-            console.error('Failed to save clinic', err);
-            toast({
-                title: 'Error',
-                description: err.response?.data?.message || 'Failed to save clinic. Please try again.',
-                variant: 'destructive'
-            });
+            toast({ title: 'Error', description: 'Save failed', variant: 'destructive' });
         } finally {
             setLoading(false);
         }
     };
 
-    if (initialLoading) {
-        return (
-            <div className="flex items-center justify-center min-h-[400px]">
-                <Spinner size="lg" />
-            </div>
-        );
-    }
+    if (initialLoading) return <Spinner fullScreen />;
 
     return (
-        <div className="space-y-6 max-w-2xl mx-auto">
-            <PageHeader
-                title={isEditMode ? 'Edit Clinic' : 'Add New Clinic'} 
-                description={isEditMode ? 'Update clinic details.' : 'Create a new clinic location.'}
-                actions={
-                    <Button variant="ghost" onClick={() => navigate('/clinics')} icon={ArrowLeft}>
+        /* Top padding එක (pt-4) අඩු කරලා Navbar එකට ලං කළා */
+        <div className="min-h-screen bg-[#F8FAFC] pt-4 pb-12 px-4"> 
+            <div className="max-w-2xl mx-auto"> {/* Form එකේ පළල loku wadi nisa max-w-2xl damma */}
+                
+                {/* Header - image_0e1862.png විදිහටම compact කළා */}
+                <div className="flex justify-between items-start mb-6">
+                    <div>
+                        <h1 className="text-2xl font-black text-[#0F172A] mb-1">
+                            {isEditMode ? 'Edit Doctor' : 'Add New Doctor'}
+                        </h1>
+                        <p className="text-slate-500 text-[13px] font-medium">
+                            Create or update doctor profiles.
+                        </p>
+                    </div>
+                    <button 
+                        onClick={() => navigate('/doctors')}
+                        className="text-[#334155] font-bold text-[13px] hover:text-slate-900 transition-colors pt-2"
+                    >
                         Back to List
-                    </Button>
-                }
-            />
+                    </button>
+                </div>
 
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                <form onSubmit={handleSubmit} className="p-6 space-y-6">
-                    <div className="space-y-4">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Clinic Name <span className="text-red-500">*</span>
+                {/* Form Card - p-8 damma compact penuma enna */}
+                <div className="bg-white rounded-[24px] shadow-[0_4px_25px_rgba(0,0,0,0.02)] border border-gray-100 p-8">
+                    <form onSubmit={handleSubmit} className="space-y-5">
+                        
+                        <div className="space-y-1.5">
+                            <label className="text-[12px] font-bold text-[#1E293B] block">
+                                Doctor Name <span className="text-red-500">*</span>
                             </label>
-                            <Input
+                            <input
                                 name="name"
                                 value={formData.name}
                                 onChange={handleChange}
-                                placeholder="e.g. Wellness Point Central"
-                                className={errors.name ? 'border-red-300 focus:ring-red-500' : ''}
+                                placeholder="e.g. Dr. John Doe"
+                                required
+                                className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-cyan-400/20 focus:border-cyan-400 transition-all"
                             />
-                            {errors.name && <p className="mt-1 text-sm text-red-500">{errors.name}</p>}
                         </div>
 
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Address <span className="text-red-500">*</span>
+                        <div className="space-y-1.5">
+                            <label className="text-[12px] font-bold text-[#1E293B] block">
+                                Specialization <span className="text-red-500">*</span>
                             </label>
-                            <Input
-                                name="address"
-                                value={formData.address}
+                            <input
+                                name="specialization"
+                                value={formData.specialization}
                                 onChange={handleChange}
-                                placeholder="Full address"
-                                className={errors.address ? 'border-red-300 focus:ring-red-500' : ''}
+                                placeholder="e.g. Cardiology"
+                                required
+                                className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-cyan-400/20 focus:border-cyan-400 transition-all"
                             />
-                            {errors.address && <p className="mt-1 text-sm text-red-500">{errors.address}</p>}
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Phone Number <span className="text-red-500">*</span>
+                        <div className="grid grid-cols-2 gap-5">
+                            <div className="space-y-1.5">
+                                <label className="text-[12px] font-bold text-[#1E293B] block">
+                                    Consultation Fee <span className="text-red-500">*</span>
                                 </label>
-                                <Input
-                                    name="phone"
-                                    value={formData.phone}
+                                <input
+                                    name="consultationFee"
+                                    type="number"
+                                    value={formData.consultationFee}
                                     onChange={handleChange}
-                                    placeholder="e.g. +1 234 567 890"
-                                    className={errors.phone ? 'border-red-300 focus:ring-red-500' : ''}
+                                    placeholder="0.00"
+                                    required
+                                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-cyan-400/20 focus:border-cyan-400 transition-all"
                                 />
-                                {errors.phone && <p className="mt-1 text-sm text-red-500">{errors.phone}</p>}
                             </div>
 
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Status
-                                </label>
-                                <Select
-                                    name="status"
-                                    value={formData.status}
-                                    onChange={handleChange}
-                                >
-                                    <option value="Active">Active</option>
-                                    <option value="Inactive">Inactive</option>
-                                    <option value="Maintenance">Maintenance</option>
-                                </Select>
+                            <div className="space-y-1.5">
+                                <label className="text-[12px] font-bold text-[#1E293B] block">Status</label>
+                                <div className="relative">
+                                    <select
+                                        name="status"
+                                        value={formData.status}
+                                        onChange={handleChange}
+                                        className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 appearance-none focus:outline-none focus:ring-2 focus:ring-cyan-400/20 focus:border-cyan-400 transition-all cursor-pointer"
+                                    >
+                                        <option value="Active">Active</option>
+                                        <option value="Inactive">Inactive</option>
+                                    </select>
+                                    <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+                                </div>
                             </div>
                         </div>
-                    </div>
 
-                    <div className="pt-4 flex items-center justify-end gap-3 border-t border-gray-100">
-                        <Button 
-                            type="button" 
-                            variant="ghost" 
-                            onClick={() => navigate('/clinics')}
-                        >
-                            Cancel
-                        </Button>
-                        <Button 
-                            type="submit" 
-                            disabled={loading}
-                            icon={loading ? undefined : Save}
-                        >
-                            {loading ? 'Saving...' : (isEditMode ? 'Update Clinic' : 'Create Clinic')}
-                        </Button>
-                    </div>
-                </form>
+                        <div className="flex justify-end items-center gap-5 pt-4">
+                            <button
+                                type="button"
+                                onClick={() => navigate('/doctors')}
+                                className="text-slate-500 font-bold text-[13px] hover:text-slate-800 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="submit"
+                                disabled={loading}
+                                className="bg-[#00D1FF] hover:bg-[#00B8E6] text-white px-7 py-2.5 rounded-xl font-bold text-[13px] shadow-md shadow-cyan-100 transition-all active:scale-[0.98] disabled:opacity-50"
+                            >
+                                {loading ? 'Saving...' : isEditMode ? 'Update Doctor' : 'Create Doctor'}
+                            </button>
+                        </div>
+                    </form>
+                </div>
             </div>
         </div>
     );
 };
 
-export default ClinicFormPage;
+export default DoctorFormPage;
