@@ -24,6 +24,8 @@ import PrescriptionsListPage from '../pages/prescriptions/PrescriptionsListPage'
 import PrescriptionFormPage from '../pages/prescriptions/PrescriptionFormPage';
 import PaymentsListPage from '../pages/payments/PaymentsListPage';
 import PaymentFormPage from '../pages/payments/PaymentFormPage';
+import RefundsListPage from '../pages/refunds/RefundsListPage';
+import RefundFormPage from '../pages/refunds/RefundFormPage';
 
 const PlaceholderPage = ({ title }) => (
     <div>
@@ -88,8 +90,12 @@ const AppRoutes = () => {
         <Route path="/payments/new" element={<PaymentFormPage />} />
         <Route path="/payments/:id/edit" element={<PaymentFormPage />} />
 
+        {/* Refunds Routes */}
+        <Route path="/refunds" element={<RefundsListPage />} />
+        <Route path="/refunds/new" element={<RefundFormPage />} />
+        <Route path="/refunds/:id/edit" element={<RefundFormPage />} />
+
         {/* Placeholder Routes */}
-        <Route path="/refunds" element={<PlaceholderPage title="Refunds" />} />
         <Route path="/notifications" element={<PlaceholderPage title="Notifications" />} />
         <Route path="/audit-logs" element={<PlaceholderPage title="Audit Logs" />} />
         <Route path="/staff" element={<PlaceholderPage title="Staff" />} />
