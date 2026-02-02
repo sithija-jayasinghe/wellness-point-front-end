@@ -4,6 +4,8 @@ import LoginPage from '../pages/LoginPage';
 import DashboardPage from '../pages/dashboard/DashboardPage';
 import DashboardLayout from '../layout/DashboardLayout';
 import RequireAuth from '../auth/RequireAuth';
+import ClinicsListPage from '../pages/clinics/ClinicsListPage';
+import ClinicFormPage from '../pages/clinics/ClinicFormPage';
 import EmptyState from '../components/EmptyState';
 import { Construction } from 'lucide-react';
 
@@ -28,8 +30,12 @@ const AppRoutes = () => {
       <Route element={<RequireAuth><DashboardLayout /></RequireAuth>}>
         <Route path="/" element={<DashboardPage />} />
         
+        {/* Clinics Routes */}
+        <Route path="/clinics" element={<ClinicsListPage />} />
+        <Route path="/clinics/new" element={<ClinicFormPage />} />
+        <Route path="/clinics/:id/edit" element={<ClinicFormPage />} />
+
         {/* Placeholder Routes */}
-        <Route path="/clinics" element={<PlaceholderPage title="Clinics" />} />
         <Route path="/doctors" element={<PlaceholderPage title="Doctors" />} />
         <Route path="/patients" element={<PlaceholderPage title="Patients" />} />
         <Route path="/schedules" element={<PlaceholderPage title="Schedules" />} />
