@@ -50,14 +50,28 @@ const PatientFormPage = () => {
         try {
             // Fetch all and find, assuming no getById endpoint
             const patients = await getAllPatients();
+
+            if (!Array.isArray(patients)) {
+                throw new Error('Invalid response from server');
+            }
+
             const patient = patients.find(p => p.id === parseInt(id) || p.id === id);
             
             if (patient) {
+                let formattedDob = '';
+                if (patient.dob) {
+                    if (typeof patient.dob === 'string') {
+                        formattedDob = patient.dob.split('T')[0];
+                    } else if (patient.dob instanceof Date) {
+                        formattedDob = patient.dob.toISOString().split('T')[0];
+                    }
+                }
+
                 setFormData({
                     name: patient.name || '',
                     nic: patient.nic || '',
                     phone: patient.phone || '',
-                    dob: patient.dob ? patient.dob.split('T')[0] : '', // Format date for input
+                    dob: formattedDob,
                     gender: patient.gender || 'MALE',
                     userId: patient.userId || ''
                 });
