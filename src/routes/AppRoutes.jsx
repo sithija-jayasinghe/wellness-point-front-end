@@ -18,6 +18,8 @@ import ScheduleFormPage from '../pages/schedules/ScheduleFormPage';
 import AppointmentsListPage from '../pages/appointments/AppointmentsListPage';
 import AppointmentFormPage from '../pages/appointments/AppointmentFormPage';
 import AppointmentDetailsPage from '../pages/appointments/AppointmentDetailsPage';
+import PrescriptionsListPage from '../pages/prescriptions/PrescriptionsListPage';
+import PrescriptionFormPage from '../pages/prescriptions/PrescriptionFormPage';
 
 const PlaceholderPage = ({ title }) => (
     <div>
@@ -69,7 +71,12 @@ const AppRoutes = () => {
 
         {/* Placeholder Routes */}
         <Route path="/consultations" element={<PlaceholderPage title="Consultations" />} />
-        <Route path="/prescriptions" element={<PlaceholderPage title="Prescriptions" />} />
+        
+        {/* Prescriptions Routes */}
+        <Route path="/prescriptions" element={<PrescriptionsListPage />} />
+        <Route path="/prescriptions/new" element={<PrescriptionFormPage />} />
+        <Route path="/prescriptions/:id/edit" element={<PrescriptionFormPage />} />
+
         <Route path="/payments" element={<PlaceholderPage title="Payments" />} />
         <Route path="/refunds" element={<PlaceholderPage title="Refunds" />} />
         <Route path="/notifications" element={<PlaceholderPage title="Notifications" />} />
