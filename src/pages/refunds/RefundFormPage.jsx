@@ -60,7 +60,7 @@ const RefundFormPage = () => {
                     }
 
                     setFormData({
-                        paymentId: refund.payment ? refund.payment.paymentId : '',
+                        paymentId: refund.paymentId || (refund.payment ? refund.payment.paymentId : ''),
                         amount: refund.amount || '',
                         refundDate: dateStr,
                         reason: refund.reason || ''
@@ -109,7 +109,10 @@ const RefundFormPage = () => {
                 amount: parseFloat(formData.amount),
                 refundDate: formData.refundDate,
                 reason: formData.reason,
-                payment: { paymentId: parseInt(formData.paymentId) }
+                payment: { paymentId: parseInt(formData.paymentId) },
+                // Backend requires full payment object sometimes if DTO has "private Payment payment;"
+                // but usually, ID inside object is enough for Entity mapping through jackson if configured right.
+                // However, let's ensure we are sending what matched the DTO structure.
             };
 
             if (isEditMode) {

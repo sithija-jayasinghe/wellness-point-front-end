@@ -75,10 +75,12 @@ const RefundsListPage = () => {
 
     const filteredRefunds = refunds.filter(item => {
         const search = searchTerm.toLowerCase();
+        // Since DTO has "private Payment payment;", it will always be nested
+        const pId = item.payment ? item.payment.paymentId : '';
         return (
             String(item.refundId).includes(search) ||
             String(item.reason).toLowerCase().includes(search) ||
-            (item.payment && String(item.payment.paymentId).includes(search))
+            String(pId).includes(search)
         );
     });
 
