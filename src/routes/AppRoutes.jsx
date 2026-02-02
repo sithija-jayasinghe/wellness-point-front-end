@@ -27,6 +27,7 @@ import PaymentFormPage from '../pages/payments/PaymentFormPage';
 import RefundsListPage from '../pages/refunds/RefundsListPage';
 import RefundFormPage from '../pages/refunds/RefundFormPage';
 import NotificationsPage from '../pages/notifications/NotificationsPage';
+import AuditLogsPage from '../pages/audit/AuditLogsPage';
 
 const PlaceholderPage = ({ title }) => (
     <div>
@@ -98,6 +99,9 @@ const AppRoutes = () => {
 
         {/* Notifications Routes */}
         <Route path="/notifications" element={<NotificationsPage />} />
+
+        {/* Audit Logs Routes */}
+        <Route path="/audit-logs" element={<AuditLogsPage />} />
 
         {/* Placeholder Routes */}
         <Route path="/audit-logs" element={<PlaceholderPage title="Audit Logs" />} />
