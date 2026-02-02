@@ -156,22 +156,22 @@ const DoctorsListPage = () => {
                                         </span>
                                     </td>
                                     <td className="px-6 py-4 text-right">
-                                        <div className="flex justify-end gap-2">
+                                        <div className="flex items-center justify-end gap-2">
                                             <Button 
-                                                variant="outline" 
-                                                size="sm" 
+                                                variant="ghost" 
+                                                size="sm"
                                                 onClick={() => navigate(`/doctors/${doctor.id}/edit`)}
-                                                icon={Edit}
+                                                className="h-8 w-8 p-0 text-gray-500 hover:text-blue-600"
                                             >
-                                                Edit
+                                                <Edit className="h-4 w-4" />
                                             </Button>
                                             <Button 
-                                                variant="danger" 
-                                                size="sm" 
+                                                variant="ghost" 
+                                                size="sm"
                                                 onClick={() => setDeleteId(doctor.id)}
-                                                icon={Trash2}
+                                                className="h-8 w-8 p-0 text-gray-500 hover:text-red-600"
                                             >
-                                                Delete
+                                                <Trash2 className="h-4 w-4" />
                                             </Button>
                                         </div>
                                     </td>
