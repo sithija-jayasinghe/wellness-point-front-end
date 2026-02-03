@@ -12,10 +12,8 @@ import {
   CreditCard, 
   RotateCcw, 
   Bell, 
-  ClipboardList, 
-  IdCard, 
   UserCog, 
-  Shield, 
+  Shield,  
   Key,
   PlusSquare
 } from 'lucide-react';
@@ -36,8 +34,6 @@ const Sidebar = ({ user }) => {
     { icon: CreditCard, label: 'Payments', path: '/payments' },
     { icon: RotateCcw, label: 'Refunds', path: '/refunds' },
     { icon: Bell, label: 'Notifications', path: '/notifications' },
-    { icon: ClipboardList, label: 'Audit Logs', path: '/audit-logs' },
-    { icon: IdCard, label: 'Staff', path: '/staff' },
     // Admin only
     { icon: UserCog, label: 'Users', path: '/users', adminOnly: true },
     { icon: Shield, label: 'Roles', path: '/roles', adminOnly: true },

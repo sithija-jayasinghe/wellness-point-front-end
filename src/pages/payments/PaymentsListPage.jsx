@@ -144,7 +144,7 @@ const PaymentsListPage = () => {
                                     <td className="p-4 font-medium text-gray-900">#{p.paymentId}</td>
                                     <td className="p-4 text-gray-500">{p.appointmentId}</td>
                                     <td className="p-4 text-gray-900 font-medium">
-                                        ${p.amount?.toFixed(2)}
+                                        Rs. {p.amount?.toFixed(2)}
                                     </td>
                                     <td className="p-4 text-gray-500">{p.paymentDate}</td>
                                     <td className="p-4 text-gray-500">{p.paymentMethod}</td>
