@@ -1,9 +1,36 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   Users, Calendar, Banknote, Wallet, Plus, 
-  TrendingUp, CheckCircle, Phone, ArrowUpRight 
+  TrendingUp, CheckCircle, Phone, ArrowUpRight, Activity 
 } from 'lucide-react';
 import { cn } from '../../utils';
+import { getAllPatients } from '../../api/patients.api';
+import { getAllAppointments } from '../../api/appointments.api';
+import { getAllPayments } from '../../api/payments.api';
+import { getAllLogs } from '../../api/auditLogs.api';
+import Spinner from '../../components/Spinner';
+
+// --- Helper Functions ---
+
+const parseDate = (dateArr) => {
+    if (!dateArr) return new Date();
+    if (Array.isArray(dateArr)) {
+        // [yyyy, mm, dd, hh, mm, ss]
+        return new Date(dateArr[0], dateArr[1] - 1, dateArr[2], dateArr[3] || 0, dateArr[4] || 0);
+    }
+    return new Date(dateArr);
+};
+
+const isSameDay = (d1, d2) => {
+    return d1.getFullYear() === d2.getFullYear() &&
+           d1.getMonth() === d2.getMonth() &&
+           d1.getDate() === d2.getDate();
+};
+
+const formatCurrency = (amount) => {
+    return 'Rs. ' + (amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
 
 // --- Sub-components to keep the main return clean ---
 
@@ -56,6 +83,109 @@ const ActivityItem = ({ icon, color, title, desc, time }) => (
 // --- Main Page Component ---
 
 const DashboardPage = () => {
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+      totalPatients: 0,
+      todayAppointments: 0,
+      todayAppointmentsPending: 0,
+      todayIncome: 0,
+      totalIncome: 0,
+      appointmentTrend: 0 // percentage
+  });
+  const [recentLogs, setRecentLogs] = useState([]);
+  const [appointmentHistory, setAppointmentHistory] = useState([]);
+
+  const [chartData, setChartData] = useState([]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+        try {
+            const [patients, appointments, payments, logs] = await Promise.all([
+                getAllPatients().catch(err => { console.error('Patients API Error', err); return []; }),
+                getAllAppointments().catch(err => { console.error('Appointments API Error', err); return []; }),
+                getAllPayments().catch(err => { console.error('Payments API Error', err); return []; }),
+                getAllLogs().catch(err => { console.error('Logs API Error', err); return []; })
+            ]);
+
+            const today = new Date();
+            const patientsList = Array.isArray(patients) ? patients : [];
+            const appointmentsList = Array.isArray(appointments) ? appointments : [];
+            const paymentsList = Array.isArray(payments) ? payments : [];
+            const logsList = Array.isArray(logs) ? logs : [];
+
+            // 1. Patient Stats
+            const totalPatients = patientsList.length;
+
+            // 2. Appointment Stats
+            const todayAppts = appointmentsList.filter(apt => {
+                const date = parseDate(apt.dateTime || apt.appointmentTime);
+                return isSameDay(date, today);
+            });
+            const pendingToday = todayAppts.filter(a => a.status === 'Scheduled' || a.status === 'Pending').length;
+            
+            // Calculate Trend (This week vs Last week simple proxy)
+            const oneWeekAgo = new Date(today);
+            oneWeekAgo.setDate(today.getDate() - 7);
+            const thisWeekCount = appointmentsList.filter(a => parseDate(a.dateTime || a.appointmentTime) > oneWeekAgo).length;
+
+            // Chart Data Generation (Last 7 Days)
+            const days = [];
+            for (let i = 6; i >= 0; i--) {
+                const d = new Date(today);
+                d.setDate(today.getDate() - i);
+                days.push(d);
+            }
+
+            const chartPoints = days.map(day => {
+                const count = appointmentsList.filter(a => isSameDay(parseDate(a.dateTime || a.appointmentTime), day)).length;
+                return {
+                    day: day.toLocaleDateString('en-US', { weekday: 'short' }),
+                    count,
+                    date: day
+                };
+            });
+            setChartData(chartPoints);
+
+            // 3. Financial Stats
+            const todayPay = paymentsList
+                .filter(p => isSameDay(parseDate(p.paymentDate), today))
+                .reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
+            
+            const totalPay = paymentsList.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
+
+            // 4. Logs / Activity
+            const sortedLogs = logsList.sort((a, b) => {
+                const da = parseDate(a.timestamp);
+                const db = parseDate(b.timestamp);
+                return db - da; // Descending
+            }).slice(0, 5);
+
+            setStats({
+                totalPatients,
+                todayAppointments: todayAppts.length,
+                todayAppointmentsPending: pendingToday,
+                todayIncome: todayPay,
+                totalIncome: totalPay,
+                thisWeekCount: thisWeekCount
+            });
+            setRecentLogs(sortedLogs);
+            setLoading(false);
+
+        } catch (error) {
+            console.error("Dashboard data load failed", error);
+            setLoading(false);
+        }
+    };
+
+
+    fetchData();
+  }, []);
+
+  if (loading) {
+      return <div className="flex justify-center items-center h-screen bg-[#F8FAFC]"><Spinner /></div>;
+  }
+
   return (
     <div className="p-8 bg-[#F8FAFC] min-h-screen font-sans">
       {/* Header Section */}
@@ -65,11 +195,10 @@ const DashboardPage = () => {
           <p className="text-slate-500 text-sm mt-1">Welcome back, here's what's happening today.</p>
         </div>
         <div className="flex gap-3">
-          <button className="flex items-center bg-white border border-gray-200 rounded-xl px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm">
-            <Calendar className="h-4 w-4 text-slate-400 mr-2" />
-            This Week
-          </button>
-          <button className="flex items-center bg-[#00D1FF] hover:bg-[#00B8E6] transition-all text-white rounded-xl px-5 py-2.5 text-sm font-bold shadow-lg shadow-cyan-100">
+          <button 
+            onClick={() => navigate('/appointments/new')}
+            className="flex items-center bg-[#00D1FF] hover:bg-[#00B8E6] transition-all text-white rounded-xl px-5 py-2.5 text-sm font-bold shadow-lg shadow-cyan-100"
+          >
             <Plus className="h-4 w-4 mr-2" strokeWidth={3} />
             New Appointment
           </button>
@@ -82,10 +211,32 @@ const DashboardPage = () => {
         <p className="text-sm text-slate-400 mb-6">Key performance indicators for the clinic.</p>
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <StatCard title="Total Patients" value="14,203" icon={Users} color="blue" trend="5.2%" />
-          <StatCard title="Today's Appointments" value="42" icon={Calendar} color="cyan" badge="8 Pending" />
-          <StatCard title="Today's Income" value="$4,250" icon={Banknote} color="purple" />
-          <StatCard title="Total Income" value="$1.2M" icon={Wallet} color="green" />
+          <StatCard 
+            title="Total Patients" 
+            value={stats.totalPatients.toLocaleString()} 
+            icon={Users} 
+            color="blue" 
+            trend="+2.4%" // Hardcoded growth for now or calculate 
+          />
+          <StatCard 
+            title="Today's Appointments" 
+            value={stats.todayAppointments} 
+            icon={Calendar} 
+            color="cyan" 
+            badge={`${stats.todayAppointmentsPending} Pending`} 
+          />
+          <StatCard 
+            title="Today's Income" 
+            value={formatCurrency(stats.todayIncome)} 
+            icon={Banknote} 
+            color="purple" 
+          />
+          <StatCard 
+            title="Total Income" 
+            value={formatCurrency(stats.totalIncome)} 
+            icon={Wallet} 
+            color="green" 
+          />
         </div>
       </div>
 
@@ -101,11 +252,11 @@ const DashboardPage = () => {
             <div className="flex items-center gap-6">
               <div className="flex items-center gap-2">
                 <span className="h-2 w-2 rounded-full bg-cyan-400"></span>
-                <span className="text-sm font-semibold text-slate-500">Appointments</span>
+                <span className="text-sm font-semibold text-slate-500">Appointments (This Week)</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-2xl font-black text-slate-900">148</span>
-                <span className="text-[11px] font-bold text-emerald-500 bg-emerald-50 px-2 py-0.5 rounded-lg">+12%</span>
+                <span className="text-2xl font-black text-slate-900">{stats.thisWeekCount}</span>
+                <span className="text-[11px] font-bold text-emerald-500 bg-emerald-50 px-2 py-0.5 rounded-lg">Live</span>
               </div>
             </div>
           </div>
@@ -124,25 +275,44 @@ const DashboardPage = () => {
                 </linearGradient>
               </defs>
               
-              {/* The Smooth Wave Path */}
-              <path 
-                d="M 0 30 C 10 30, 15 35, 25 32 C 35 28, 40 15, 50 22 C 60 28, 65 5, 75 10 C 85 15, 90 28, 100 20" 
-                fill="none" stroke="#00D1FF" strokeWidth="1.5" strokeLinecap="round" 
-              />
-              <path 
-                d="M 0 30 C 10 30, 15 35, 25 32 C 35 28, 40 15, 50 22 C 60 28, 65 5, 75 10 C 85 15, 90 28, 100 20 V 40 H 0 Z" 
-                fill="url(#chartFill)" 
-              />
+              {/* Dynamic Path */}
+              {(() => {
+                if (chartData.length === 0) return null;
+                const maxCount = Math.max(...chartData.map(d => d.count), 10); // Minimum scale of 10
+                const width = 100;
+                const height = 40;
+                const step = width / (chartData.length - 1);
+                
+                // Map chartData points to SVG coordinates
+                const points = chartData.map((d, i) => {
+                    const x = i * step;
+                    const y = height - ((d.count / maxCount) * (height * 0.7)); // Use 70% of height for max bars
+                    return `${x},${y}`;
+                });
 
-              {/* Precise Data Points on the line */}
-              <circle cx="25" cy="32" r="1.2" fill="white" stroke="#00D1FF" strokeWidth="1" />
-              <circle cx="50" cy="22" r="1.2" fill="white" stroke="#00D1FF" strokeWidth="1" />
-              <circle cx="75" cy="10" r="1.2" fill="white" stroke="#00D1FF" strokeWidth="1" />
-              <circle cx="100" cy="20" r="1.2" fill="white" stroke="#00D1FF" strokeWidth="1" />
+                // Simple line path
+                const pathD = `M ${points.join(' L ')}`;
+                const areaD = `${pathD} V ${height} H 0 Z`;
+
+                return (
+                    <>
+                        <path d={pathD} fill="none" stroke="#00D1FF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                        <path d={areaD} fill="url(#chartFill)" />
+                        {points.map((p, i) => {
+                            const [cx, cy] = p.split(',');
+                            return (
+                                <circle key={i} cx={cx} cy={cy} r="1.5" fill="white" stroke="#00D1FF" strokeWidth="1" />
+                            );
+                        })}
+                    </>
+                );
+              })()}
             </svg>
 
             <div className="flex justify-between mt-8 text-[11px] font-bold text-slate-300 uppercase tracking-widest">
-              <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
+              {chartData.map((d, i) => (
+                  <span key={i}>{d.day}</span>
+              ))}
             </div>
           </div>
         </div>
@@ -151,29 +321,22 @@ const DashboardPage = () => {
         <div className="bg-white rounded-[32px] shadow-sm border border-gray-50 p-8 flex flex-col">
           <h3 className="text-lg font-bold text-slate-900 mb-8">Recent Activity</h3>
           <div className="space-y-8 flex-grow">
-            <ActivityItem 
-              icon={<Users className="h-4 w-4" />} 
-              color="bg-blue-50 text-blue-500"
-              title="New Patient Registered" 
-              desc="James Cameron was added by Dr. Smith" 
-              time="2 mins ago" 
-            />
-            <ActivityItem 
-              icon={<CheckCircle className="h-4 w-4" />} 
-              color="bg-emerald-50 text-emerald-500"
-              title="Appointment Completed" 
-              desc="Dr. House finished checkup with Sarah J." 
-              time="1 hour ago" 
-            />
-            <ActivityItem 
-              icon={<Phone className="h-4 w-4" />} 
-              color="bg-orange-50 text-orange-500"
-              title="Reschedule Request" 
-              desc="Patient Mike R. requested new time" 
-              time="3 hours ago" 
-            />
+            {recentLogs.length > 0 ? (
+                recentLogs.map((log) => (
+                    <ActivityItem 
+                        key={log.id}
+                        icon={<Activity className="h-4 w-4" />} 
+                        color="bg-blue-50 text-blue-500"
+                        title={log.action} 
+                        desc={`${log.entity} (ID: ${log.entityId})`} 
+                        time={parseDate(log.timestamp).toLocaleString()} 
+                    />
+                ))
+            ) : (
+                <div className="text-center text-gray-400 py-10">No recent activity</div>
+            )}
           </div>
-          <button className="w-full mt-8 py-3.5 rounded-2xl border border-gray-100 text-[13px] font-bold text-slate-500 hover:bg-slate-50 transition-colors">
+          <button onClick={() => window.location.href='/audit-logs'} className="w-full mt-8 py-3.5 rounded-2xl border border-gray-100 text-[13px] font-bold text-slate-500 hover:bg-slate-50 transition-colors">
             View All Activity
           </button>
         </div>

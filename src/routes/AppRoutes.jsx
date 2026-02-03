@@ -31,6 +31,9 @@ import AuditLogsPage from '../pages/audit/AuditLogsPage';
 
 import UsersListPage from '../pages/users/UsersListPage';
 import UserFormPage from '../pages/users/UserFormPage';
+import RolesListPage from '../pages/roles/RolesListPage';
+import PermissionsListPage from '../pages/permissions/PermissionsListPage';
+
 
 const PlaceholderPage = ({ title }) => (
     <div>
@@ -107,16 +110,16 @@ const AppRoutes = () => {
         <Route path="/audit-logs" element={<AuditLogsPage />} />
 
         {/* Placeholder Routes */}
-        <Route path="/audit-logs" element={<PlaceholderPage title="Audit Logs" />} />
         <Route path="/staff" element={<PlaceholderPage title="Staff" />} />
+        
         
         {/* Admin Only Routes */}
         <Route path="/users" element={<UsersListPage />} />
         <Route path="/users/new" element={<UserFormPage />} />
         <Route path="/users/:id/edit" element={<UserFormPage />} />
         
-        <Route path="/roles" element={<PlaceholderPage title="Roles Management" />} />
-        <Route path="/permissions" element={<PlaceholderPage title="Permissions Management" />} />
+        <Route path="/roles" element={<RolesListPage />} />
+        <Route path="/permissions" element={<PermissionsListPage />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />
