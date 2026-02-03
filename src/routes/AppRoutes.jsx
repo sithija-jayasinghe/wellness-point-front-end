@@ -34,6 +34,7 @@ import UserFormPage from '../pages/users/UserFormPage';
 import RolesListPage from '../pages/roles/RolesListPage';
 import PermissionsListPage from '../pages/permissions/PermissionsListPage';
 
+import UnauthorizedPage from '../pages/UnauthorizedPage';
 
 const PlaceholderPage = ({ title }) => (
     <div>
@@ -52,6 +53,7 @@ const AppRoutes = () => {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/unauthorized" element={<UnauthorizedPage />} />
       
       <Route element={<RequireAuth><DashboardLayout /></RequireAuth>}>
         <Route path="/" element={<DashboardPage />} />
@@ -106,20 +108,40 @@ const AppRoutes = () => {
         {/* Notifications Routes */}
         <Route path="/notifications" element={<NotificationsPage />} />
 
-        {/* Audit Logs Routes */}
-        <Route path="/audit-logs" element={<AuditLogsPage />} />
-
-        {/* Placeholder Routes */}
-        <Route path="/staff" element={<PlaceholderPage title="Staff" />} />
-        
-        
         {/* Admin Only Routes */}
-        <Route path="/users" element={<UsersListPage />} />
-        <Route path="/users/new" element={<UserFormPage />} />
-        <Route path="/users/:id/edit" element={<UserFormPage />} />
+        <Route path="/users" element={
+            <RequireAuth allowedRoles={['ADMIN']}>
+                <UsersListPage />
+            </RequireAuth>
+        } />
+        <Route path="/users/new" element={
+            <RequireAuth allowedRoles={['ADMIN']}>
+                <UserFormPage />
+            </RequireAuth>
+        } />
+        <Route path="/users/:id/edit" element={
+            <RequireAuth allowedRoles={['ADMIN']}>
+                <UserFormPage />
+            </RequireAuth>
+        } />
         
-        <Route path="/roles" element={<RolesListPage />} />
-        <Route path="/permissions" element={<PermissionsListPage />} />
+        <Route path="/roles" element={
+            <RequireAuth allowedRoles={['ADMIN']}>
+                <RolesListPage />
+            </RequireAuth>
+        } />
+        <Route path="/permissions" element={
+            <RequireAuth allowedRoles={['ADMIN']}>
+                <PermissionsListPage />
+            </RequireAuth>
+        } />
+        
+        <Route path="/audit-logs" element={
+           <RequireAuth allowedRoles={['ADMIN']}>
+               <AuditLogsPage />
+           </RequireAuth>
+        } />
+
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />
