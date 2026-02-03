@@ -256,19 +256,34 @@ const AppointmentFormPage = () => {
                                     const doctor = doctors.find(d => d.id === s.doctorId);
                                     const doctorName = doctor ? doctor.name : `Doctor ID: ${s.doctorId || 'N/A'}`;
                                     
-                                    const formatTime = (t) => {
-                                        if (!t) return '';
-                                        if (Array.isArray(t)) {
-                                            const [h, min] = t.slice(3, 5); // Assuming LocalDateTime array format
-                                            return `${h?.toString().padStart(2, '0')}:${min?.toString().padStart(2, '0')}`;
+                                    // Helper to format date consistent with backend response
+                                    const formatDateTime = (dt) => {
+                                        if (!dt) return '';
+                                        let dateObj;
+                                        // Handle array format [yyyy, mm, dd, hh, mm]
+                                        if (Array.isArray(dt)) {
+                                            const [year, month, day, hour, minute] = dt;
+                                            dateObj = new Date(year, month - 1, day, hour, minute);
+                                        } else {
+                                            dateObj = new Date(dt);
                                         }
-                                        return new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                                        
+                                        if (isNaN(dateObj.getTime())) return '';
+                                        
+                                        return dateObj.toLocaleString([], {
+                                            year: 'numeric',
+                                            month: 'short',
+                                            day: 'numeric',
+                                            hour: '2-digit',
+                                            minute: '2-digit'
+                                        });
                                     };
 
-                                    // Simple display logic
+                                    const displayStr = formatDateTime(s.startDateTime);
+
                                     return (
                                         <option key={s.id} value={s.id}>
-                                            #{s.id} - {doctorName} ({s.dayOfWeek || 'Date'} {s.time || ''})
+                                            #{s.id} - {doctorName} ({displayStr})
                                         </option>
                                     );
                                 })}
