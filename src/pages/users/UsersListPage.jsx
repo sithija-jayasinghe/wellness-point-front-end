@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search, Users, Edit, Trash2 } from 'lucide-react';
-import { getAllUsers, deleteUser } from '../../api/users.api';
+import { Plus, Search, Users, Edit, Trash2, Ban } from 'lucide-react';
+import { getAllUsers, deleteUser, updateUser } from '../../api/users.api';
 import PageHeader from '../../components/PageHeader';
 import Button from '../../components/Button';
 import Input from '../../components/Input';
@@ -59,25 +59,76 @@ const UsersListPage = () => {
             setDeleting(true);
             await deleteUser(deleteId);
             
-            // Soft Delete: Mark as INACTIVE instead of removing
-            setUsers(prev => prev.map(item => {
-                if ((item.userId || item.id) === deleteId) {
-                    return { ...item, status: 'INACTIVE' };
-                }
-                return item;
-            }));
+            setUsers(prev => prev.filter(item => (item.userId || item.id) !== deleteId));
 
             toast({
                 title: 'Success',
-                description: 'User deactivated successfully',
+                description: 'User deleted successfully',
                 variant: 'success'
             });
             setDeleteId(null);
         } catch (err) {
             console.error('Failed to delete user', err);
             
+            const backendMsg = err.response?.data?.message || "";
+            // Check if foreign key error: Switch to Deactivate
+            if (backendMsg.includes("foreign key") || backendMsg.includes("constraint") || err.response?.status === 500) {
+                 const userToDeactivate = users.find(u => (u.userId || u.id) === deleteId);
+                 if (userToDeactivate) {
+                     try {
+                         // Prepare strictly clean payload for update
+                         // Only send fields that the `updateUser` endpoint usually expects
+                         const payload = {
+                             username: userToDeactivate.username,
+                             email: userToDeactivate.email,
+                             role: userToDeactivate.role, 
+                             status: 'INACTIVE'
+                         };
+                         
+                         // Handle clinicId specifically
+                         if (userToDeactivate.clinic && typeof userToDeactivate.clinic === 'object') {
+                             payload.clinicId = userToDeactivate.clinic.id;
+                         } else if (userToDeactivate.clinicId) {
+                             payload.clinicId = userToDeactivate.clinicId;
+                         } else {
+                             payload.clinicId = null;
+                         }
+
+                         // Ensure ID type match
+                         if (payload.clinicId) payload.clinicId = parseInt(payload.clinicId);
+
+                         // Attempt Soft Delete
+                         await updateUser(deleteId, payload);
+                         
+                         setUsers(prev => prev.map(item => {
+                            if ((item.userId || item.id) === deleteId) {
+                                return { ...item, status: 'INACTIVE' };
+                            }
+                            return item;
+                        }));
+
+                         toast({
+                             title: 'Deactivated',
+                             description: 'User could not be deleted due to associated records, so they were deactivated instead.',
+                             variant: 'warning' 
+                         });
+                         setDeleteId(null);
+                         return;
+                     } catch (updateErr) {
+                         console.error("Failed to deactivate", updateErr);
+                         toast({
+                             title: 'Action Failed',
+                             description: 'Cannot delete user due to dependencies. Please try editing the user and setting status to Inactive.',
+                             variant: 'destructive'
+                         });
+                         // We handled the UI feedback, so return to avoid showing the generic error below
+                         setDeleteId(null); 
+                         return;
+                     }
+                 }
+            }
+
             let description = 'Failed to delete user';
-            const backendMsg = err.response?.data?.message;
 
             if (backendMsg) {
                 // Intercept raw database errors and show friendly message
