@@ -197,4 +197,5 @@ const ClinicFormPage = () => {
     );
 };
 
+
 export default ClinicFormPage;
