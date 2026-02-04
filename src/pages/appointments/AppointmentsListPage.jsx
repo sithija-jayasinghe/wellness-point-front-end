@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Search, Calendar, Check, X, Trash2, Eye, Edit, RefreshCw } from 'lucide-react';
 import { getAllAppointments, cancelAppointment, completeAppointment, deleteAppointment } from '../../api/appointments.api';
+import { getAllSchedules } from '../../api/schedules.api';
+import { getAllDoctors } from '../../api/doctors.api';
 import PageHeader from '../../components/PageHeader';
 import Button from '../../components/Button';
 import Input from '../../components/Input';
@@ -23,6 +25,8 @@ const AppointmentsListPage = () => {
     const { toast } = useToast();
     
     const [appointments, setAppointments] = useState([]);
+    const [schedules, setSchedules] = useState([]);
+    const [doctors, setDoctors] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
@@ -70,8 +74,14 @@ const AppointmentsListPage = () => {
     const fetchAppointments = async () => {
         try {
             setLoading(true);
-            const data = await getAllAppointments();
-            setAppointments(data);
+            const [appointmentsData, schedulesData, doctorsData] = await Promise.all([
+                getAllAppointments(),
+                getAllSchedules().catch(() => []),
+                getAllDoctors().catch(() => [])
+            ]);
+            setAppointments(appointmentsData);
+            setSchedules(schedulesData);
+            setDoctors(doctorsData);
             setError(null);
         } catch (err) {
             console.error('Failed to fetch appointments', err);
@@ -198,6 +208,7 @@ const AppointmentsListPage = () => {
                             <TableRow>
                                 <TableHead>ID</TableHead>
                                 <TableHead>Schedule ID</TableHead>
+                                <TableHead>Doctor Name</TableHead>
                                 <TableHead>Patient ID</TableHead>
                                 <TableHead>Date & Time</TableHead>
                                 <TableHead>Status</TableHead>
@@ -205,10 +216,25 @@ const AppointmentsListPage = () => {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {filteredAppointments.map((apt) => (
+                            {filteredAppointments.map((apt) => {
+                                // Find doctor via schedule if direct doctor link is missing
+                                let doctorName = 'Unknown Doctor';
+                                
+                                if (apt.doctor) {
+                                    doctorName = apt.doctor.name;
+                                } else if (apt.scheduleId) {
+                                    const schedule = schedules.find(s => s.id === apt.scheduleId);
+                                    if (schedule && schedule.doctorId) {
+                                        const doctor = doctors.find(d => d.id === schedule.doctorId);
+                                        if (doctor) doctorName = doctor.name;
+                                    }
+                                }
+
+                                return (
                                 <TableRow key={apt.id}>
                                     <td className="p-4 font-medium text-gray-900">#{apt.id}</td>
                                     <td className="p-4 text-gray-500">{apt.scheduleId}</td>
+                                    <td className="p-4 text-gray-500">{doctorName}</td>
                                     <td className="p-4 text-gray-500">{apt.patientId}</td>
                                     <td className="p-4 text-gray-500">
                                         {formatDateTime(apt.appointmentTime)}
@@ -273,7 +299,8 @@ const AppointmentsListPage = () => {
                                         </div>
                                     </td>
                                 </TableRow>
-                            ))}
+                            );
+                            })}
                         </TableBody>
                     </Table>
                 )}
