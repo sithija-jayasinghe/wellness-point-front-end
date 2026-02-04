@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Save } from 'lucide-react';
 import { registerUser, updateUser, getAllUsers } from '../../api/users.api';
+import { createDoctor } from '../../api/doctors.api';
 import { getAllClinics } from '../../api/clinics.api';
 import PageHeader from '../../components/PageHeader';
 import Button from '../../components/Button';
@@ -22,7 +23,9 @@ const UserFormPage = () => {
         password: '',
         role: '',
         status: 'ACTIVE',
-        clinicId: ''
+        clinicId: '',
+        specialization: '',
+        consultationFee: ''
     });
 
     const [clinics, setClinics] = useState([]);
@@ -106,6 +109,11 @@ const UserFormPage = () => {
         if (!isEditMode && !formData.role) newErrors.role = 'Role is required';
         if (!isEditMode && !formData.clinicId) newErrors.clinicId = 'Clinic is required';
 
+        if (formData.role === 'DOCTOR') {
+            if (!formData.specialization) newErrors.specialization = 'Specialization is required for doctors';
+            if (!formData.consultationFee) newErrors.consultationFee = 'Consultation fee is required for doctors';
+        }
+
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
     };
@@ -120,6 +128,10 @@ const UserFormPage = () => {
                 ...formData,
                 clinicId: formData.clinicId ? parseInt(formData.clinicId) : null
             };
+            
+            // Remove extra fields that are not part of user schema
+            delete payload.specialization;
+            delete payload.consultationFee;
 
             // Remove password if empty in edit mode
             if (isEditMode && !payload.password) {
@@ -131,6 +143,26 @@ const UserFormPage = () => {
                 toast({ title: 'Success', description: 'User updated successfully', variant: 'success' });
             } else {
                 await registerUser(payload);
+                
+                if (payload.role === 'DOCTOR') {
+                    const doctorData = {
+                        name: payload.username, // Using username as name
+                        specialization: formData.specialization,
+                        consultationFee: Number(formData.consultationFee),
+                        status: 'ACTIVE'
+                    };
+                    try {
+                        await createDoctor(doctorData);
+                    } catch (docErr) {
+                        console.error('Failed to create doctor record', docErr);
+                        toast({ 
+                            title: 'Warning', 
+                            description: `User created but failed to create doctor record: ${docErr.response?.data?.message || docErr.message}`, 
+                            variant: 'warning' 
+                        });
+                    }
+                }
+                
                 toast({ title: 'Success', description: 'User registered successfully', variant: 'success' });
             }
             navigate('/users');
@@ -232,12 +264,11 @@ const UserFormPage = () => {
                                         value={formData.role}
                                         onChange={handleChange}
                                         className={errors.role ? 'border-red-300 focus:ring-red-500' : ''}
-                                    >
-                                        <option value="">Select Role</option>
-                                        {roles.map(r => (
-                                            <option key={r.id} value={r.id}>{r.name}</option>
-                                        ))}
-                                    </Select>
+                                        options={[
+                                            { value: "", label: "Select Role" },
+                                            ...roles.map(r => ({ value: r.id, label: r.name }))
+                                        ]}
+                                    />
                                     {errors.role && <p className="mt-1 text-sm text-red-500">{errors.role}</p>}
                                 </div>
 
@@ -250,15 +281,51 @@ const UserFormPage = () => {
                                         value={formData.clinicId}
                                         onChange={handleChange}
                                         className={errors.clinicId ? 'border-red-300 focus:ring-red-500' : ''}
-                                    >
-                                        <option value="">Select Clinic</option>
-                                        {clinics.map(c => (
-                                            <option key={c.id} value={c.id}>{c.name}</option>
-                                        ))}
-                                    </Select>
+                                        options={[
+                                            { value: "", label: "Select Clinic" },
+                                            ...clinics.map(c => ({ value: c.id, label: c.name }))
+                                        ]}
+                                    />
                                     {errors.clinicId && <p className="mt-1 text-sm text-red-500">{errors.clinicId}</p>}
                                 </div>
                             </div>
+
+                            {formData.role === 'DOCTOR' && !isEditMode && (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-blue-50 p-4 rounded-lg border border-blue-100">
+                                    <div className="sm:col-span-2">
+                                        <h4 className="text-sm font-medium text-blue-900 mb-2">Doctor Details</h4>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Specialization <span className="text-red-500">*</span>
+                                        </label>
+                                        <Input
+                                            name="specialization"
+                                            value={formData.specialization}
+                                            onChange={handleChange}
+                                            placeholder="e.g. Cardiology"
+                                            className={errors.specialization ? 'border-red-300 focus:ring-red-500' : ''}
+                                        />
+                                        {errors.specialization && <p className="mt-1 text-sm text-red-500">{errors.specialization}</p>}
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Consultation Fee <span className="text-red-500">*</span>
+                                        </label>
+                                        <Input
+                                            type="number"
+                                            name="consultationFee"
+                                            value={formData.consultationFee}
+                                            onChange={handleChange}
+                                            placeholder="0.00"
+                                            min="0"
+                                            step="0.01"
+                                            className={errors.consultationFee ? 'border-red-300 focus:ring-red-500' : ''}
+                                        />
+                                        {errors.consultationFee && <p className="mt-1 text-sm text-red-500">{errors.consultationFee}</p>}
+                                    </div>
+                                </div>
+                            )}
 
                              <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -268,10 +335,11 @@ const UserFormPage = () => {
                                     name="status"
                                     value={formData.status}
                                     onChange={handleChange}
-                                >
-                                    <option value="ACTIVE">Active</option>
-                                    <option value="INACTIVE">Inactive</option>
-                                </Select>
+                                    options={[
+                                        { value: "ACTIVE", label: "Active" },
+                                        { value: "INACTIVE", label: "Inactive" }
+                                    ]}
+                                />
                             </div>
 
                          </div>

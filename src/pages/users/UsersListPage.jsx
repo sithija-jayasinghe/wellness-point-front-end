@@ -217,6 +217,7 @@ const UsersListPage = () => {
                                 <TableHead>ID</TableHead>
                                 <TableHead>Username</TableHead>
                                 <TableHead>Email</TableHead>
+                                <TableHead>Role</TableHead>
                                 <TableHead>Status</TableHead>
                                 <TableHead className="text-right">Actions</TableHead>
                             </TableRow>
@@ -227,6 +228,7 @@ const UsersListPage = () => {
                                     <td className="p-4 font-medium text-gray-900">#{user.userId}</td>
                                     <td className="p-4 text-gray-900 font-medium">{user.username}</td>
                                     <td className="p-4 text-gray-500">{user.email}</td>
+                                    <td className="p-4 text-gray-500">{user.role}</td>
                                     <td className="p-4">
                                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                                             user.status === 'ACTIVE' 
