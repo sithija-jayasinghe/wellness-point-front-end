@@ -8,6 +8,8 @@ import { cn } from '../../utils';
 import { getAllPatients } from '../../api/patients.api';
 import { getAllAppointments } from '../../api/appointments.api';
 import { getAllPayments } from '../../api/payments.api';
+import { getAllDoctors } from '../../api/doctors.api';
+import { getAllSchedules } from '../../api/schedules.api';
 import { getAllLogs } from '../../api/auditLogs.api';
 import Spinner from '../../components/Spinner';
 
@@ -67,15 +69,26 @@ const StatCard = ({ title, value, icon: IconComponent, color, trend, badge }) =>
   );
 };
 
-const ActivityItem = ({ icon, color, title, desc, time }) => (
-  <div className="flex gap-4">
-    <div className={cn("h-10 w-10 rounded-full flex items-center justify-center flex-shrink-0", color)}>
-      {icon}
+const ScheduleItem = ({ time, patient, doctor, status }) => (
+  <div className="flex gap-4 items-center">
+    <div className="flex-shrink-0 w-16 text-center">
+        <span className="text-sm font-bold text-slate-500 block">{time}</span>
     </div>
-    <div className="flex flex-col">
-      <p className="text-[14px] font-bold text-gray-900">{title}</p>
-      <p className="text-[13px] text-gray-500 leading-snug">{desc}</p>
-      <p className="text-[11px] font-medium text-gray-400 mt-1">{time}</p>
+    <div className="flex-grow p-4 rounded-2xl bg-slate-50 border border-slate-100 flex justify-between items-center group hover:bg-white hover:shadow-md transition-all">
+        <div>
+            <p className="text-sm font-bold text-slate-900">{patient}</p>
+            <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-1">
+                <span className="font-semibold text-slate-400">Dr. {doctor}</span>
+            </p>
+        </div>
+        <span className={cn(
+            "px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider",
+            (status === 'COMPLETED' || status === 'Completed') ? "bg-emerald-100 text-emerald-700" :
+            (status === 'CANCELLED' || status === 'Cancelled') ? "bg-red-100 text-red-700" :
+            "bg-blue-100 text-blue-700"
+        )}>
+            {status || 'Pending'}
+        </span>
     </div>
   </div>
 );
@@ -91,28 +104,29 @@ const DashboardPage = () => {
       todayAppointmentsPending: 0,
       todayIncome: 0,
       totalIncome: 0,
-      appointmentTrend: 0 // percentage
+      appointmentTrend: 0,
+      thisWeekCount: 0
   });
-  const [recentLogs, setRecentLogs] = useState([]);
-  const [appointmentHistory, setAppointmentHistory] = useState([]);
-
+  const [todaysAppointments, setTodaysAppointments] = useState([]);
   const [chartData, setChartData] = useState([]);
 
   useEffect(() => {
     const fetchData = async () => {
         try {
-            const [patients, appointments, payments, logs] = await Promise.all([
+            const [patients, appointments, payments, doctors, schedules] = await Promise.all([
                 getAllPatients().catch(err => { console.error('Patients API Error', err); return []; }),
                 getAllAppointments().catch(err => { console.error('Appointments API Error', err); return []; }),
                 getAllPayments().catch(err => { console.error('Payments API Error', err); return []; }),
-                getAllLogs().catch(err => { console.error('Logs API Error', err); return []; })
+                getAllDoctors().catch(err => { console.error('Doctors API Error', err); return []; }),
+                getAllSchedules().catch(err => { console.error('Schedules API Error', err); return []; })
             ]);
 
             const today = new Date();
             const patientsList = Array.isArray(patients) ? patients : [];
             const appointmentsList = Array.isArray(appointments) ? appointments : [];
             const paymentsList = Array.isArray(payments) ? payments : [];
-            const logsList = Array.isArray(logs) ? logs : [];
+            const doctorsList = Array.isArray(doctors) ? doctors : [];
+            const schedulesList = Array.isArray(schedules) ? schedules : [];
 
             // 1. Patient Stats
             const totalPatients = patientsList.length;
@@ -124,6 +138,37 @@ const DashboardPage = () => {
             });
             const pendingToday = todayAppts.filter(a => a.status === 'Scheduled' || a.status === 'Pending').length;
             
+            // Prepare Today's Schedule Data
+            const scheduleData = todayAppts.map(apt => {
+                const date = parseDate(apt.dateTime || apt.appointmentTime);
+                
+                // Resolve Patient
+                const patient = patientsList.find(p => String(p.id) === String(apt.patientId));
+                
+                // Resolve Doctor
+                let doctorName = 'Unknown';
+                if (apt.doctor && apt.doctor.name) {
+                    doctorName = apt.doctor.name;
+                } else if (apt.scheduleId) {
+                    const schedule = schedulesList.find(s => s.id === apt.scheduleId);
+                    if (schedule && schedule.doctorId) {
+                        const doctor = doctorsList.find(d => d.id === schedule.doctorId);
+                        if (doctor) doctorName = doctor.name;
+                    }
+                }
+
+                return {
+                    id: apt.id,
+                    time: date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                    timestamp: date,
+                    patientName: patient ? patient.name : `Patient ID ${apt.patientId}`,
+                    doctorName,
+                    status: apt.status
+                };
+            }).sort((a, b) => a.timestamp - b.timestamp);
+
+            setTodaysAppointments(scheduleData);
+
             // Calculate Trend (This week vs Last week simple proxy)
             const oneWeekAgo = new Date(today);
             oneWeekAgo.setDate(today.getDate() - 7);
@@ -154,13 +199,6 @@ const DashboardPage = () => {
             
             const totalPay = paymentsList.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
 
-            // 4. Logs / Activity
-            const sortedLogs = logsList.sort((a, b) => {
-                const da = parseDate(a.timestamp);
-                const db = parseDate(b.timestamp);
-                return db - da; // Descending
-            }).slice(0, 5);
-
             setStats({
                 totalPatients,
                 todayAppointments: todayAppts.length,
@@ -169,7 +207,6 @@ const DashboardPage = () => {
                 totalIncome: totalPay,
                 thisWeekCount: thisWeekCount
             });
-            setRecentLogs(sortedLogs);
             setLoading(false);
 
         } catch (error) {
@@ -317,27 +354,37 @@ const DashboardPage = () => {
           </div>
         </div>
 
-        {/* Activity Feed */}
+        {/* Activity Feed -> Replaced by Today's Schedule */}
         <div className="bg-white rounded-[32px] shadow-sm border border-gray-50 p-8 flex flex-col">
-          <h3 className="text-lg font-bold text-slate-900 mb-8">Recent Activity</h3>
-          <div className="space-y-8 flex-grow">
-            {recentLogs.length > 0 ? (
-                recentLogs.map((log) => (
-                    <ActivityItem 
-                        key={log.id}
-                        icon={<Activity className="h-4 w-4" />} 
-                        color="bg-blue-50 text-blue-500"
-                        title={log.action} 
-                        desc={`${log.entity} (ID: ${log.entityId})`} 
-                        time={parseDate(log.timestamp).toLocaleString()} 
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-lg font-bold text-slate-900">Today's Schedule</h3>
+            <span className="text-xs font-semibold text-slate-400 bg-slate-50 px-2 py-1 rounded-md">
+                {new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+            </span>
+          </div>
+          
+          <div className="space-y-4 flex-grow overflow-y-auto max-h-[400px] pr-2">
+            {todaysAppointments.length > 0 ? (
+                todaysAppointments.map((apt) => (
+                    <ScheduleItem 
+                        key={apt.id}
+                        time={apt.time}
+                        patient={apt.patientName}
+                        doctor={apt.doctorName}
+                        status={apt.status}
                     />
                 ))
             ) : (
-                <div className="text-center text-gray-400 py-10">No recent activity</div>
+                <div className="flex flex-col items-center justify-center h-full py-10 text-center">
+                    <Calendar className="h-12 w-12 text-gray-200 mb-3" />
+                    <p className="text-gray-400 font-medium">No appointments today</p>
+                    <p className="text-xs text-gray-300 mt-1">Enjoy your free time!</p>
+                </div>
             )}
           </div>
-          <button onClick={() => window.location.href='/audit-logs'} className="w-full mt-8 py-3.5 rounded-2xl border border-gray-100 text-[13px] font-bold text-slate-500 hover:bg-slate-50 transition-colors">
-            View All Activity
+          
+          <button onClick={() => navigate('/appointments')} className="w-full mt-6 py-3.5 rounded-2xl border border-gray-100 text-[13px] font-bold text-slate-500 hover:bg-slate-50 transition-colors">
+            View All Appointments
           </button>
         </div>
       </div>

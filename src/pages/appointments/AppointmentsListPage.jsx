@@ -79,7 +79,40 @@ const AppointmentsListPage = () => {
                 getAllSchedules().catch(() => []),
                 getAllDoctors().catch(() => [])
             ]);
-            setAppointments(appointmentsData);
+
+            // Auto-cancel expired 'BOOKED' appointments
+            const now = new Date();
+            const toCancelIds = [];
+            
+            const processedAppointments = appointmentsData.map(apt => {
+                // Helper checks status and time
+                const apptDate = getAppointmentDateObj(apt.appointmentTime);
+                // Check if BOOKED and time has passed
+                if (apt.status === 'BOOKED' && apptDate && apptDate < now) {
+                    toCancelIds.push(apt.id);
+                    // Update local state immediately
+                    return { ...apt, status: 'CANCELLED' };
+                }
+                return apt;
+            });
+
+            if (toCancelIds.length > 0) {
+                console.log('Auto-cancelling appointments:', toCancelIds);
+                // Trigger cancellations in backend
+                // Use allSettled to ensure one failure doesn't stop others
+                await Promise.allSettled(toCancelIds.map(id => cancelAppointment(id)));
+                
+                toast({ 
+                    title: 'Appointments Updated', 
+                    description: `${toCancelIds.length} expired booking(s) were automatically cancelled.`, 
+                    variant: 'default' 
+                });
+                
+                setAppointments(processedAppointments);
+            } else {
+                setAppointments(appointmentsData);
+            }
+
             setSchedules(schedulesData);
             setDoctors(doctorsData);
             setError(null);
