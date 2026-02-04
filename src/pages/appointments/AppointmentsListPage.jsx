@@ -133,18 +133,30 @@ const AppointmentsListPage = () => {
         setActionType(type);
     };
 
+    // Helper to resolve doctor name
+    const getDoctorName = (apt) => {
+        if (apt.doctor && apt.doctor.name) return apt.doctor.name;
+        
+        if (apt.scheduleId) {
+            const schedule = schedules.find(s => s.id === apt.scheduleId);
+            if (schedule && schedule.doctorId) {
+                const doctor = doctors.find(d => d.id === schedule.doctorId);
+                if (doctor) return doctor.name;
+            }
+        }
+        return '';
+    };
+
     const filteredAppointments = appointments.filter(apt => {
         // Safe check for properties as backend response structure might vary
         const search = searchTerm.toLowerCase();
-        // Assuming some typical fields or adjusting based on requirements
-        // The requirements only listed: { scheduleId, patientId, appointmentTime, status }
-        // But listing page usually shows names. 
-        // If the API returns raw IDs, searching by name won't work unless we enrich data.
-        // For now, search by ID or Status
+        const doctorName = getDoctorName(apt).toLowerCase();
+
         return String(apt.id).includes(search) || 
                String(apt.status).toLowerCase().includes(search) ||
                String(apt.patientId).includes(search) ||
-               String(apt.scheduleId).includes(search);
+               String(apt.scheduleId).includes(search) ||
+               doctorName.includes(search);
     });
 
     if (loading) return <Spinner fullScreen />;
@@ -181,7 +193,7 @@ const AppointmentsListPage = () => {
                     <div className="relative max-w-sm">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                         <Input 
-                            placeholder="Search ID, Status..." 
+                            placeholder="Search ID, Status, Doctor..." 
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             className="pl-9"
@@ -216,25 +228,11 @@ const AppointmentsListPage = () => {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {filteredAppointments.map((apt) => {
-                                // Find doctor via schedule if direct doctor link is missing
-                                let doctorName = 'Unknown Doctor';
-                                
-                                if (apt.doctor) {
-                                    doctorName = apt.doctor.name;
-                                } else if (apt.scheduleId) {
-                                    const schedule = schedules.find(s => s.id === apt.scheduleId);
-                                    if (schedule && schedule.doctorId) {
-                                        const doctor = doctors.find(d => d.id === schedule.doctorId);
-                                        if (doctor) doctorName = doctor.name;
-                                    }
-                                }
-
-                                return (
+                            {filteredAppointments.map((apt) => (
                                 <TableRow key={apt.id}>
                                     <td className="p-4 font-medium text-gray-900">#{apt.id}</td>
                                     <td className="p-4 text-gray-500">{apt.scheduleId}</td>
-                                    <td className="p-4 text-gray-500">{doctorName}</td>
+                                    <td className="p-4 text-gray-500">{getDoctorName(apt) || 'Unknown Doctor'}</td>
                                     <td className="p-4 text-gray-500">{apt.patientId}</td>
                                     <td className="p-4 text-gray-500">
                                         {formatDateTime(apt.appointmentTime)}
@@ -299,8 +297,7 @@ const AppointmentsListPage = () => {
                                         </div>
                                     </td>
                                 </TableRow>
-                            );
-                            })}
+                            ))}
                         </TableBody>
                     </Table>
                 )}
