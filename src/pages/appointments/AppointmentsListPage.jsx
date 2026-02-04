@@ -31,9 +31,9 @@ const AppointmentsListPage = () => {
     const [actionType, setActionType] = useState(null); // 'delete', 'cancel', 'complete'
     const [processing, setProcessing] = useState(false);
 
-    // Helper to format Java LocalDateTime array or string
-    const formatDateTime = (dateData) => {
-        if (!dateData) return 'N/A';
+    // Helper to parse date data into Date object
+    const getAppointmentDateObj = (dateData) => {
+        if (!dateData) return null;
         
         let dateObj;
         if (Array.isArray(dateData)) {
@@ -44,7 +44,23 @@ const AppointmentsListPage = () => {
             dateObj = new Date(dateData);
         }
 
-        return isNaN(dateObj.getTime()) ? 'Invalid Date' : dateObj.toLocaleString();
+        return isNaN(dateObj.getTime()) ? null : dateObj;
+    };
+
+    // Helper to format Java LocalDateTime array or string
+    const formatDateTime = (dateData) => {
+        const dateObj = getAppointmentDateObj(dateData);
+        if (!dateObj) return dateData ? 'Invalid Date' : 'N/A';
+        return dateObj.toLocaleString();
+    };
+
+    // Helper to check if appointment can be completed
+    const canComplete = (dateData) => {
+        const apptDate = getAppointmentDateObj(dateData);
+        if (!apptDate) return false;
+        
+        const now = new Date();
+        return now >= apptDate;
     };
 
     useEffect(() => {
@@ -230,8 +246,9 @@ const AppointmentsListPage = () => {
                                                 variant="ghost" 
                                                 size="sm"
                                                 onClick={() => openConfirm(apt.id, 'complete')}
-                                                className="h-8 w-8 p-0 text-gray-500 hover:text-green-600"
-                                                title="Mark as Complete"
+                                                disabled={!canComplete(apt.appointmentTime)}
+                                                className={`h-8 w-8 p-0 ${!canComplete(apt.appointmentTime) ? 'text-gray-300' : 'text-gray-500 hover:text-green-600'}`}
+                                                title={!canComplete(apt.appointmentTime) ? "Can only complete after scheduled time has passed" : "Mark as Complete"}
                                             >
                                                 <Check className="h-4 w-4" />
                                             </Button>
