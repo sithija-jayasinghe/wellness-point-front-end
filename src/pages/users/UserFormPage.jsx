@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Save } from 'lucide-react';
 import { registerUser, updateUser, getAllUsers } from '../../api/users.api';
-import { createDoctor } from '../../api/doctors.api';
+import { createDoctor, updateDoctor, getAllDoctors } from '../../api/doctors.api';
 import { getAllClinics } from '../../api/clinics.api';
 import PageHeader from '../../components/PageHeader';
 import Button from '../../components/Button';
@@ -33,7 +33,7 @@ const UserFormPage = () => {
     const [initialLoading, setInitialLoading] = useState(true);
     const [errors, setErrors] = useState({});
 
-    // Available roles - hardcoded for now as API might be placeholder
+    // Available roles
     const roles = [
         { id: 'ADMIN', name: 'Admin' },
         { id: 'DOCTOR', name: 'Doctor' },
@@ -48,8 +48,7 @@ const UserFormPage = () => {
     const loadData = async () => {
         try {
             setInitialLoading(true);
-            
-            // Allow failing to load clinics gracefully
+
             try {
                 const clinicsData = await getAllClinics();
                 setClinics(clinicsData);
@@ -58,25 +57,40 @@ const UserFormPage = () => {
             }
 
             if (isEditMode) {
-                // Since there is no getUserById in backend provided, we fetch all and find
-                // Or we can assume list page passed state, but better to fetch fresh.
-                // NOTE: Backend getAllUsers does NOT return role or clinicId based on provided snippets.
-                // This means data might be incomplete for editing these fields.
                 const users = await getAllUsers();
                 const user = users.find(u => u.userId === parseInt(id));
-                
+
                 if (user) {
                     setFormData({
                         username: user.username || '',
                         email: user.email || '',
-                        password: '', // Don't populate password
-                        role: user.role || '', // User entity likely doesn't have this
+                        password: '',
+                        role: user.role || '',
                         status: user.status || 'ACTIVE',
-                        clinicId: '' // User entity likely doesn't have this
+                        clinicId: ''
                     });
-                    if (!user.role || !user.clinicId) {
-                         // Optional: Warn user or handle API limitation
-                         console.warn("User role/clinic might be missing in fetch response");
+
+                    // If user is a doctor, fetch doctor details to populate fields and get doctorId
+                    if (user.role === 'DOCTOR') {
+                        try {
+                            const doctors = await getAllDoctors();
+                            // Find the doctor linked to this user
+                            // Checking if doctor object has nested user object matching ID
+                            const linkedDoctor = doctors.find(d => d.user?.userId === user.userId || d.user?.id === user.userId);
+
+                            if (linkedDoctor) {
+                                const currentClinicId = linkedDoctor.clinics && linkedDoctor.clinics.length > 0 ? linkedDoctor.clinics[0].id : '';
+                                setFormData(prev => ({
+                                    ...prev,
+                                    specialization: linkedDoctor.specialization || '',
+                                    consultationFee: linkedDoctor.consultationFee || '',
+                                    clinicId: currentClinicId,
+                                    doctorId: linkedDoctor.id // Store doctorId for updates
+                                }));
+                            }
+                        } catch (err) {
+                            console.error("Failed to fetch linked doctor details", err);
+                        }
                     }
                 } else {
                     toast({ title: 'Error', description: 'User not found', variant: 'destructive' });
@@ -104,7 +118,7 @@ const UserFormPage = () => {
         if (!formData.username) newErrors.username = 'Username is required';
         if (!formData.email) newErrors.email = 'Email is required';
         else if (!/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = 'Invalid email format';
-        
+
         if (!isEditMode && !formData.password) newErrors.password = 'Password is required';
         if (!isEditMode && !formData.role) newErrors.role = 'Role is required';
         if (!isEditMode && !formData.clinicId) newErrors.clinicId = 'Clinic is required';
@@ -128,47 +142,100 @@ const UserFormPage = () => {
                 ...formData,
                 clinicId: formData.clinicId ? parseInt(formData.clinicId) : null
             };
-            
-            // Remove extra fields that are not part of user schema
+
+            // Store doctor-specific fields before deletion
+            const specialization = payload.specialization;
+            const consultationFee = payload.consultationFee;
+
             delete payload.specialization;
             delete payload.consultationFee;
 
-            // Remove password if empty in edit mode
             if (isEditMode && !payload.password) {
                 delete payload.password;
             }
 
             if (isEditMode) {
                 await updateUser(id, payload);
-                toast({ title: 'Success', description: 'User updated successfully', variant: 'success' });
-            } else {
-                await registerUser(payload);
-                
-                if (payload.role === 'DOCTOR') {
-                    const doctorData = {
-                        name: payload.username, // Using username as name
-                        specialization: formData.specialization,
-                        consultationFee: Number(formData.consultationFee),
-                        status: 'ACTIVE'
+
+                // If role is DOCTOR, also update the linked Doctor entity
+                if (payload.role === 'DOCTOR' && formData.doctorId) {
+                    const doctorPayload = {
+                        name: payload.username,
+                        specialization: specialization,
+                        consultationFee: Number(consultationFee),
+                        status: payload.status,
+                        clinics: payload.clinicId ? [{ id: payload.clinicId }] : []
                     };
-                    try {
-                        await createDoctor(doctorData);
-                    } catch (docErr) {
-                        console.error('Failed to create doctor record', docErr);
-                        toast({ 
-                            title: 'Warning', 
-                            description: `User created but failed to create doctor record: ${docErr.response?.data?.message || docErr.message}`, 
-                            variant: 'warning' 
+                    await updateDoctor(formData.doctorId, doctorPayload);
+                }
+
+                toast({ title: 'Success', description: 'User and Doctor details updated successfully', variant: 'success' });
+            } else {
+                // 1. Register the User AND Capture Response (Backend updated to return this)
+                const createdUser = await registerUser(payload);
+
+                // 2. If Doctor, Create Doctor Profile
+                if (payload.role === 'DOCTOR') {
+                    // Safety check: ensure we handle if registerUser wraps response or returns direct data
+                    // Check for both userId and id, and in data wrapper
+                    let userId = createdUser?.userId || createdUser?.id || createdUser?.data?.userId || createdUser?.data?.id;
+
+                    // Fallback: If ID is not returned, try to fetch user by username
+                    if (!userId) {
+                        try {
+                            console.log("User ID not found in response, attempting to fetch by username...");
+                            const allUsers = await getAllUsers();
+                            const foundUser = allUsers.find(u => u.username === payload.username);
+                            if (foundUser) {
+                                userId = foundUser.userId || foundUser.id;
+                                console.log("User found by lookup:", userId);
+                            }
+                        } catch (lookupErr) {
+                            console.error("Failed to lookup user after creation", lookupErr);
+                        }
+                    }
+
+                    if (userId) {
+                        const doctorData = {
+                            name: payload.username,
+                            specialization: formData.specialization,
+                            consultationFee: Number(formData.consultationFee),
+                            status: 'ACTIVE',
+                            // FIX: Send clinics as a list
+                            clinics: payload.clinicId ? [{ id: payload.clinicId }] : [],
+                            // FIX: Link the User ID from the registration step
+                            user: { userId: userId }
+                        };
+
+                        try {
+                            await createDoctor(doctorData);
+                        } catch (docErr) {
+                            console.error('Failed to create doctor record', docErr);
+                            toast({
+                                title: 'Warning',
+                                description: `User Link Failed: ${docErr.response?.data?.message || docErr.message}`,
+                                variant: 'warning'
+                            });
+                        }
+                    } else {
+                        console.warn("Created user ID missing, skipping doctor profile creation", createdUser);
+                        toast({
+                            title: 'Warning',
+                            description: 'User created but Doctor profile could not be created (User ID missing)',
+                            variant: 'warning'
                         });
                     }
                 }
-                
+
                 toast({ title: 'Success', description: 'User registered successfully', variant: 'success' });
             }
             navigate('/users');
         } catch (err) {
             console.error('Failed to save user', err);
-            const msg = err.response?.data?.message || 'Failed to save user'; 
+            let msg = err.response?.data?.message || 'Failed to save user';
+            if (err.response?.status === 409 && !err.response?.data?.message) {
+                msg = 'Username or email already exists.';
+            }
             toast({
                 title: 'Error',
                 description: msg,
@@ -185,8 +252,8 @@ const UserFormPage = () => {
 
     return (
         <div className="space-y-6 max-w-2xl mx-auto">
-             <PageHeader
-                title={isEditMode ? 'Edit User' : 'Register User'} 
+            <PageHeader
+                title={isEditMode ? 'Edit User' : 'Register User'}
                 description={isEditMode ? 'Update user details.' : 'Register a new user in the system.'}
                 actions={
                     <Button variant="ghost" onClick={() => navigate('/users')} icon={ArrowLeft}>
@@ -199,9 +266,9 @@ const UserFormPage = () => {
                 <form onSubmit={handleSubmit} className="p-6 space-y-6">
                     <div>
                         <h3 className="text-lg font-medium text-gray-900 mb-4">Account Information</h3>
-                        
+
                         <div className="grid grid-cols-1 gap-6">
-                            
+
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -231,7 +298,7 @@ const UserFormPage = () => {
                                     {errors.email && <p className="mt-1 text-sm text-red-500">{errors.email}</p>}
                                 </div>
                             </div>
-                            
+
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">
                                     Password {isEditMode && <span className="text-gray-400 font-normal">(Leave blank to keep current)</span>} {!isEditMode && <span className="text-red-500">*</span>}
@@ -251,10 +318,10 @@ const UserFormPage = () => {
                     </div>
 
                     <div className="border-t border-gray-100 pt-6">
-                         <h3 className="text-lg font-medium text-gray-900 mb-4">Role & Access</h3>
-                         <div className="grid grid-cols-1 gap-6">
-                            
-                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <h3 className="text-lg font-medium text-gray-900 mb-4">Role & Access</h3>
+                        <div className="grid grid-cols-1 gap-6">
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">
                                         Role {isEditMode && <span className="text-gray-400 font-normal">(Updates ignored by backend)</span>} {!isEditMode && <span className="text-red-500">*</span>}
@@ -290,7 +357,7 @@ const UserFormPage = () => {
                                 </div>
                             </div>
 
-                            {formData.role === 'DOCTOR' && !isEditMode && (
+                            {formData.role === 'DOCTOR' && (
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-blue-50 p-4 rounded-lg border border-blue-100">
                                     <div className="sm:col-span-2">
                                         <h4 className="text-sm font-medium text-blue-900 mb-2">Doctor Details</h4>
@@ -327,7 +394,7 @@ const UserFormPage = () => {
                                 </div>
                             )}
 
-                             <div>
+                            <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">
                                     Status
                                 </label>
@@ -342,19 +409,19 @@ const UserFormPage = () => {
                                 />
                             </div>
 
-                         </div>
+                        </div>
                     </div>
 
                     <div className="pt-4 flex items-center justify-end gap-3 border-t border-gray-100">
-                        <Button 
-                            type="button" 
-                            variant="ghost" 
+                        <Button
+                            type="button"
+                            variant="ghost"
                             onClick={() => navigate('/users')}
                         >
                             Cancel
                         </Button>
-                        <Button 
-                            type="submit" 
+                        <Button
+                            type="submit"
                             disabled={loading}
                             icon={loading ? undefined : Save}
                         >

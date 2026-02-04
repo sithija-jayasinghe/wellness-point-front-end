@@ -29,7 +29,7 @@ const ClinicFormPage = () => {
             try {
                 const clinics = await getAllClinics();
                 const clinic = clinics.find(c => c.id === parseInt(id) || c.id === id);
-                
+
                 if (clinic) {
                     setFormData({
                         name: clinic.name || '',
@@ -81,14 +81,14 @@ const ClinicFormPage = () => {
         if (!formData.name.trim()) newErrors.name = 'Clinic name is required';
         if (!formData.address.trim()) newErrors.address = 'Address is required';
         if (!formData.phone.trim()) newErrors.phone = 'Phone number is required';
-        
+
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        
+
         if (!validateForm()) return;
 
         try {
@@ -126,9 +126,9 @@ const ClinicFormPage = () => {
     return (
         <div className="max-w-2xl mx-auto space-y-6">
             <div className="flex items-center gap-4 mb-6">
-                <Button 
-                    variant="ghost" 
-                    icon={ArrowLeft} 
+                <Button
+                    variant="ghost"
+                    icon={ArrowLeft}
                     onClick={() => navigate('/clinics')}
                 >
                     Back
@@ -185,7 +185,7 @@ const ClinicFormPage = () => {
                         <Button
                             type="submit"
                             icon={Save}
-                            loading={loading}
+                            isLoading={loading}
                             disabled={loading}
                         >
                             {isEditMode ? 'Update Clinic' : 'Create Clinic'}
