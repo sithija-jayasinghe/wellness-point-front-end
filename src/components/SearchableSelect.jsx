@@ -1,0 +1,112 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { ChevronDown, Search, X, Check } from 'lucide-react';
+import { cn } from '../utils';
+
+const SearchableSelect = ({ 
+    options = [], 
+    value, 
+    onChange, 
+    name,
+    placeholder = "Select option...", 
+    className,
+    disabled = false
+}) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const [searchTerm, setSearchTerm] = useState('');
+    const containerRef = useRef(null);
+
+    // Close dropdown when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (containerRef.current && !containerRef.current.contains(event.target)) {
+                setIsOpen(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    // Find selected label
+    const selectedOption = options.find(opt => opt.value === value);
+
+    const filteredOptions = options.filter(opt => 
+        (opt.label || '').toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    const handleSelect = (optionValue) => {
+        if (onChange) {
+            onChange({ 
+                target: { 
+                    name: name, 
+                    value: optionValue 
+                } 
+            });
+        }
+        setIsOpen(false);
+        setSearchTerm('');
+    };
+
+    return (
+        <div className={cn("relative", className)} ref={containerRef}>
+            <div
+                className={cn(
+                    "flex h-10 w-full items-center justify-between rounded-md border border-gray-300 bg-white px-3 py-2 text-sm cursor-pointer",
+                    disabled ? "opacity-50 cursor-not-allowed" : "hover:border-gray-400",
+                    isOpen ? "ring-2 ring-cyan-500 border-transparent" : "",
+                    "focus:outline-none"
+                )}
+                onClick={() => !disabled && setIsOpen(!isOpen)}
+            >
+                <span className={selectedOption ? "text-gray-900" : "text-gray-400"}>
+                    {selectedOption ? selectedOption.label : placeholder}
+                </span>
+                <ChevronDown className="h-4 w-4 text-gray-400 opacity-50" />
+            </div>
+
+            {isOpen && (
+                <div className="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-md border border-gray-200 bg-white shadow-lg">
+                    <div className="sticky top-0 z-10 bg-white p-2 border-b border-gray-100">
+                        <div className="relative">
+                            <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
+                            <input
+                                type="text"
+                                className="w-full rounded-md border border-gray-200 py-2 pl-8 pr-4 text-sm focus:border-cyan-500 focus:outline-none"
+                                placeholder="Search..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                onClick={(e) => e.stopPropagation()}
+                                autoFocus
+                            />
+                        </div>
+                    </div>
+                    <div className="py-1">
+                        {filteredOptions.length === 0 ? (
+                            <div className="px-4 py-2 text-sm text-gray-500 text-center">
+                                No results found.
+                            </div>
+                        ) : (
+                            filteredOptions.map((option) => (
+                                <div
+                                    key={option.value}
+                                    className={cn(
+                                        "flex items-center justify-between px-4 py-2 text-sm cursor-pointer hover:bg-gray-50",
+                                        option.value === value ? "bg-cyan-50 text-cyan-700" : "text-gray-900"
+                                    )}
+                                    onClick={() => handleSelect(option.value)}
+                                >
+                                    <span>{option.label}</span>
+                                    {option.value === value && (
+                                        <Check className="h-4 w-4 text-cyan-600" />
+                                    )}
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
+export default SearchableSelect;

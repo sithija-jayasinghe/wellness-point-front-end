@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Save } from 'lucide-react';
+import { ArrowLeft, Save, Plus } from 'lucide-react';
 import { bookAppointment, updateAppointment, getAppointmentById } from '../../api/appointments.api';
 import { getAllPatients, createPatient } from '../../api/patients.api';
 import { getAllDoctors } from '../../api/doctors.api';
@@ -10,6 +10,7 @@ import PageHeader from '../../components/PageHeader';
 import Button from '../../components/Button';
 import Input from '../../components/Input';
 import Select from '../../components/Select';
+import SearchableSelect from '../../components/SearchableSelect';
 import { useToast } from '../../components/useToast';
 import Spinner from '../../components/Spinner';
 
@@ -286,29 +287,33 @@ const AppointmentFormPage = () => {
                 <form onSubmit={handleSubmit} className="p-6 space-y-6">
                     <div className="space-y-4">
                         <div>
-                            <div className="flex items-center justify-between mb-1">
-                                <label className="block text-sm font-medium text-gray-700">
-                                    Patient <span className="text-red-500">*</span>
-                                </label>
-                                <button 
-                                    type="button" 
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Patient <span className="text-red-500">*</span>
+                            </label>
+                            <div className="flex gap-3">
+                                <div className="flex-1">
+                                    <SearchableSelect
+                                        name="patientId"
+                                        value={formData.patientId}
+                                        onChange={handleChange}
+                                        placeholder="Select Patient..."
+                                        className={errors.patientId ? 'border-red-300 focus:ring-red-500' : ''}
+                                        options={patients.map(p => ({
+                                            value: p.id,
+                                            label: `${p.id} - ${p.name} (${p.phone})`
+                                        }))}
+                                    />
+                                </div>
+                                <Button
+                                    type="button"
                                     onClick={() => setIsPatientModalOpen(true)}
-                                    className="text-xs text-blue-600 hover:text-blue-700 hover:underline font-medium"
+                                    icon={Plus}
+                                    variant="outline"
+                                    className="shrink-0"
                                 >
-                                    + New Patient
-                                </button>
+                                    New Patient
+                                </Button>
                             </div>
-                            <Select
-                                name="patientId"
-                                value={formData.patientId}
-                                onChange={handleChange}
-                                className={errors.patientId ? 'border-red-300 focus:ring-red-500' : ''}
-                            >
-                                <option value="">Select Patient</option>
-                                {patients.map(p => (
-                                    <option key={p.id} value={p.id}>{p.id} - {p.name} ({p.phone})</option>
-                                ))}
-                            </Select>
                             {errors.patientId && <p className="mt-1 text-sm text-red-500">{errors.patientId}</p>}
                         </div>
 
