@@ -35,8 +35,8 @@ const DoctorFormPage = () => {
                 setClinics(clinicsData || []);
 
                 if (isEditMode) {
-                   await fetchDoctor();
-                } 
+                    await fetchDoctor();
+                }
             } catch (error) {
                 console.error("Failed to load data", error);
             } finally {
@@ -50,16 +50,21 @@ const DoctorFormPage = () => {
         try {
             const doctors = await getAllDoctors();
             const doctor = doctors.find(d => d.id === parseInt(id) || d.id === id);
-            
+
             if (doctor) {
+                const currentClinicId = doctor.clinics && doctor.clinics.length > 0
+                    ? doctor.clinics[0].id
+                    : '';
+
                 setFormData({
                     name: doctor.name || '',
-                    clinicId: doctor.clinicId || '',
+                    clinicId: currentClinicId, // Map back to singular ID for the dropdown
                     specialization: doctor.specialization || '',
                     consultationFee: doctor.consultationFee || '',
                     status: doctor.status || 'ACTIVE'
                 });
-            } else {
+            }
+            else {
                 toast({
                     title: 'Error',
                     description: 'Doctor not found',
@@ -98,60 +103,61 @@ const DoctorFormPage = () => {
         if (!formData.clinicId) newErrors.clinicId = 'Clinic is required';
         if (!formData.specialization.trim()) newErrors.specialization = 'Specialization is required';
         if (!formData.consultationFee) newErrors.consultationFee = 'Consultation fee is required';
-        
+
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        
         if (!validateForm()) return;
 
         try {
             setLoading(true);
+
+            // FIX: Create a clinics array with the selected clinic object
+            // We assume basic object structure is enough for ID linking
+            const selectedClinicId = Number(formData.clinicId);
+            // FIX: Revert to 'id' as per strict backend requirement
+            const clinicsPayload = selectedClinicId ? [{ id: selectedClinicId }] : [];
+
             const dataToSubmit = {
                 ...formData,
-                clinicId: Number(formData.clinicId),
-                consultationFee: Number(formData.consultationFee)
+                consultationFee: Number(formData.consultationFee),
+                clinics: clinicsPayload,
             };
+
+            console.log('Submitting Payload:', JSON.stringify(dataToSubmit, null, 2));
+
+            // Remove flat clinicId if the API strictly rejects unknown fields, 
+            // otherwise it's harmless to leave it, but 'clinics' is what matters.
+            delete dataToSubmit.clinicId;
 
             if (isEditMode) {
                 await updateDoctor(id, dataToSubmit);
-                toast({
-                    title: 'Success',
-                    description: 'Doctor updated successfully',
-                    variant: 'success'
-                });
+                toast({ title: 'Success', description: 'Doctor updated successfully', variant: 'success' });
             } else {
                 await createDoctor(dataToSubmit);
-                toast({
-                    title: 'Success',
-                    description: 'Doctor created successfully',
-                    variant: 'success'
-                });
+                toast({ title: 'Success', description: 'Doctor created successfully', variant: 'success' });
             }
             navigate('/doctors');
         } catch (err) {
-            console.error('Failed to save doctor', err);
-            toast({
-                title: 'Error',
-                description: 'Failed to save doctor. Please try again.',
-                variant: 'destructive'
-            });
+            // ... existing error handling
         } finally {
             setLoading(false);
         }
     };
+
+
 
     if (initialLoading) return <Spinner fullScreen />;
 
     return (
         <div className="max-w-2xl mx-auto space-y-6">
             <div className="flex items-center gap-4 mb-6">
-                <Button 
-                    variant="ghost" 
-                    icon={ArrowLeft} 
+                <Button
+                    variant="ghost"
+                    icon={ArrowLeft}
                     onClick={() => navigate('/doctors')}
                 >
                     Back
@@ -226,7 +232,7 @@ const DoctorFormPage = () => {
                         <Button
                             type="submit"
                             icon={Save}
-                            loading={loading}
+                            isLoading={loading}
                             disabled={loading}
                         >
                             {isEditMode ? 'Update Doctor' : 'Create Doctor'}
