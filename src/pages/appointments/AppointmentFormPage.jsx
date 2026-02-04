@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Save } from 'lucide-react';
 import { bookAppointment, updateAppointment, getAppointmentById } from '../../api/appointments.api';
-import { getAllPatients } from '../../api/patients.api';
+import { getAllPatients, createPatient } from '../../api/patients.api';
 import { getAllDoctors } from '../../api/doctors.api';
 import { getUser } from '../../auth/authStorage'; 
 import { getAllSchedules } from '../../api/schedules.api'; 
@@ -27,6 +27,18 @@ const AppointmentFormPage = () => {
         status: 'BOOKED' 
     });
     
+    // New Patient Modal State
+    const [isPatientModalOpen, setIsPatientModalOpen] = useState(false);
+    const [newPatientData, setNewPatientData] = useState({
+        name: '',
+        nic: '',
+        phone: '',
+        dob: '',
+        gender: 'MALE'
+    });
+    const [newPatientErrors, setNewPatientErrors] = useState({});
+    const [creatingPatient, setCreatingPatient] = useState(false);
+
     const [patients, setPatients] = useState([]);
     const [schedules, setSchedules] = useState([]);
     const [doctors, setDoctors] = useState([]);
@@ -115,6 +127,56 @@ const AppointmentFormPage = () => {
         setFormData(prev => ({ ...prev, [name]: value }));
         if (errors[name]) {
             setErrors(prev => ({ ...prev, [name]: null }));
+        }
+    };
+
+    // New Patient Handlers
+    const handleNewPatientChange = (e) => {
+        const { name, value } = e.target;
+        setNewPatientData(prev => ({ ...prev, [name]: value }));
+        if (newPatientErrors[name]) {
+            setNewPatientErrors(prev => ({ ...prev, [name]: null }));
+        }
+    };
+
+    const validateNewPatient = () => {
+        const errs = {};
+        if (!newPatientData.name.trim()) errs.name = 'Name is required';
+        if (!newPatientData.nic.trim()) errs.nic = 'NIC is required';
+        if (!newPatientData.phone.trim()) errs.phone = 'Phone number is required';
+        if (!newPatientData.dob) errs.dob = 'Date of birth is required';
+        setNewPatientErrors(errs);
+        return Object.keys(errs).length === 0;
+    };
+
+    const handleSubmitNewPatient = async () => {
+        if (!validateNewPatient()) return;
+
+        try {
+            setCreatingPatient(true);
+            const created = await createPatient(newPatientData);
+            
+            // Refresh patient list
+            const patientsList = await getAllPatients();
+            setPatients(patientsList);
+            
+            // Select the new patient
+            setFormData(prev => ({ ...prev, patientId: created.id }));
+            
+            toast({ title: 'Success', description: 'Patient created successfully', variant: 'success' });
+            
+            // Reset and close
+            setNewPatientData({ name: '', nic: '', phone: '', dob: '', gender: 'MALE' });
+            setIsPatientModalOpen(false);
+        } catch (err) {
+            console.error('Failed to create patient', err);
+            toast({ 
+                title: 'Error', 
+                description: err.response?.data?.message || 'Failed to create patient', 
+                variant: 'destructive' 
+            });
+        } finally {
+            setCreatingPatient(false);
         }
     };
 
@@ -224,9 +286,18 @@ const AppointmentFormPage = () => {
                 <form onSubmit={handleSubmit} className="p-6 space-y-6">
                     <div className="space-y-4">
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Patient <span className="text-red-500">*</span>
-                            </label>
+                            <div className="flex items-center justify-between mb-1">
+                                <label className="block text-sm font-medium text-gray-700">
+                                    Patient <span className="text-red-500">*</span>
+                                </label>
+                                <button 
+                                    type="button" 
+                                    onClick={() => setIsPatientModalOpen(true)}
+                                    className="text-xs text-blue-600 hover:text-blue-700 hover:underline font-medium"
+                                >
+                                    + New Patient
+                                </button>
+                            </div>
                             <Select
                                 name="patientId"
                                 value={formData.patientId}
@@ -235,7 +306,7 @@ const AppointmentFormPage = () => {
                             >
                                 <option value="">Select Patient</option>
                                 {patients.map(p => (
-                                    <option key={p.id} value={p.id}>{p.id} - {p.name}</option>
+                                    <option key={p.id} value={p.id}>{p.id} - {p.name} ({p.phone})</option>
                                 ))}
                             </Select>
                             {errors.patientId && <p className="mt-1 text-sm text-red-500">{errors.patientId}</p>}
@@ -279,7 +350,9 @@ const AppointmentFormPage = () => {
                                         });
                                     };
 
-                                    const displayStr = formatDateTime(s.startDateTime);
+                                    const startStr = formatDateTime(s.startDateTime);
+                                    const endStr = formatDateTime(s.endDateTime);
+                                    const displayStr = endStr ? `${startStr} - ${endStr}` : startStr;
 
                                     return (
                                         <option key={s.id} value={s.id}>
@@ -343,6 +416,103 @@ const AppointmentFormPage = () => {
                     </div>
                 </form>
             </div>
+
+            {/* New Patient Modal */}
+            {isPatientModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+                    <div className="w-full max-w-lg bg-white rounded-xl shadow-xl overflow-hidden ring-1 ring-black ring-opacity-5">
+                        <div className="p-6 border-b border-gray-100">
+                            <h3 className="text-lg font-semibold text-gray-900">Add New Patient</h3>
+                        </div>
+                        <div className="p-6 space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Full Name <span className="text-red-500">*</span>
+                                </label>
+                                <Input
+                                    name="name"
+                                    value={newPatientData.name}
+                                    onChange={handleNewPatientChange}
+                                    className={newPatientErrors.name ? 'border-red-300 focus:ring-red-500' : ''}
+                                    placeholder="e.g. John Doe"
+                                />
+                                {newPatientErrors.name && <p className="mt-1 text-sm text-red-500">{newPatientErrors.name}</p>}
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        NIC <span className="text-red-500">*</span>
+                                    </label>
+                                    <Input
+                                        name="nic"
+                                        value={newPatientData.nic}
+                                        onChange={handleNewPatientChange}
+                                        className={newPatientErrors.nic ? 'border-red-300 focus:ring-red-500' : ''}
+                                        placeholder="National ID"
+                                    />
+                                    {newPatientErrors.nic && <p className="mt-1 text-sm text-red-500">{newPatientErrors.nic}</p>}
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Phone <span className="text-red-500">*</span>
+                                    </label>
+                                    <Input
+                                        name="phone"
+                                        value={newPatientData.phone}
+                                        onChange={handleNewPatientChange}
+                                        className={newPatientErrors.phone ? 'border-red-300 focus:ring-red-500' : ''}
+                                        placeholder="Mobile Number"
+                                    />
+                                    {newPatientErrors.phone && <p className="mt-1 text-sm text-red-500">{newPatientErrors.phone}</p>}
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Date of Birth <span className="text-red-500">*</span>
+                                    </label>
+                                    <Input
+                                        type="date"
+                                        name="dob"
+                                        value={newPatientData.dob}
+                                        onChange={handleNewPatientChange}
+                                        className={newPatientErrors.dob ? 'border-red-300 focus:ring-red-500' : ''}
+                                    />
+                                    {newPatientErrors.dob && <p className="mt-1 text-sm text-red-500">{newPatientErrors.dob}</p>}
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Gender
+                                    </label>
+                                    <Select
+                                        name="gender"
+                                        value={newPatientData.gender}
+                                        onChange={handleNewPatientChange}
+                                    >
+                                        <option value="MALE">Male</option>
+                                        <option value="FEMALE">Female</option>
+                                        <option value="OTHER">Other</option>
+                                    </Select>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="bg-gray-50 px-6 py-4 flex flex-row-reverse gap-2">
+                            <Button 
+                                onClick={handleSubmitNewPatient} 
+                                disabled={creatingPatient}
+                                icon={creatingPatient && Spinner}
+                            >
+                                {creatingPatient ? 'Creating...' : 'Create Patient'}
+                            </Button>
+                            <Button variant="ghost" onClick={() => setIsPatientModalOpen(false)}>
+                                Cancel
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

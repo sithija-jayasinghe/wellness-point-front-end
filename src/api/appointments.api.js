@@ -36,30 +36,15 @@ export const updateAppointment = async (id, data) => {
 };
 
 export const cancelAppointment = async (id) => {
-    // Fallback: Fetch -> Change Status -> Update
-    // because dedicated endpoint returns 500 (likely Enum/Logic issue on backend)
-    const current = await getAppointmentById(id);
-    const payload = {
-        id: parseInt(id), // Include ID in payload
-        scheduleId: current.scheduleId,
-        patientId: current.patientId,
-        appointmentTime: formatTimeForUpdate(current.appointmentTime),
-        status: 'CANCELLED'
-    };
-    return await updateAppointment(id, payload);
+    // There is a dedicated endpoint for cancellation which is much cleaner
+    const response = await http.put(`/appointment/${id}/cancel`);
+    return response.data;
 };
 
 export const completeAppointment = async (id) => {
-    // Fallback: Fetch -> Change Status -> Update
-    const current = await getAppointmentById(id);
-    const payload = {
-        id: parseInt(id), // Include ID in payload
-        scheduleId: current.scheduleId,
-        patientId: current.patientId,
-        appointmentTime: formatTimeForUpdate(current.appointmentTime),
-        status: 'COMPLETED'
-    };
-    return await updateAppointment(id, payload);
+    // There is a dedicated endpoint for completion which is much cleaner
+    const response = await http.put(`/appointment/${id}/complete`);
+    return response.data;
 };
 
 export const deleteAppointment = async (id) => {

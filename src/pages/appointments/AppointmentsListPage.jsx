@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Search, Calendar, Check, X, Trash2, Eye, Edit, RefreshCw } from 'lucide-react';
 import { getAllAppointments, cancelAppointment, completeAppointment, deleteAppointment } from '../../api/appointments.api';
+import { getAllSchedules } from '../../api/schedules.api';
+import { getAllDoctors } from '../../api/doctors.api';
 import PageHeader from '../../components/PageHeader';
 import Button from '../../components/Button';
 import Input from '../../components/Input';
@@ -23,6 +25,8 @@ const AppointmentsListPage = () => {
     const { toast } = useToast();
     
     const [appointments, setAppointments] = useState([]);
+    const [schedules, setSchedules] = useState([]);
+    const [doctors, setDoctors] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
@@ -31,9 +35,9 @@ const AppointmentsListPage = () => {
     const [actionType, setActionType] = useState(null); // 'delete', 'cancel', 'complete'
     const [processing, setProcessing] = useState(false);
 
-    // Helper to format Java LocalDateTime array or string
-    const formatDateTime = (dateData) => {
-        if (!dateData) return 'N/A';
+    // Helper to parse date data into Date object
+    const getAppointmentDateObj = (dateData) => {
+        if (!dateData) return null;
         
         let dateObj;
         if (Array.isArray(dateData)) {
@@ -44,7 +48,23 @@ const AppointmentsListPage = () => {
             dateObj = new Date(dateData);
         }
 
-        return isNaN(dateObj.getTime()) ? 'Invalid Date' : dateObj.toLocaleString();
+        return isNaN(dateObj.getTime()) ? null : dateObj;
+    };
+
+    // Helper to format Java LocalDateTime array or string
+    const formatDateTime = (dateData) => {
+        const dateObj = getAppointmentDateObj(dateData);
+        if (!dateObj) return dateData ? 'Invalid Date' : 'N/A';
+        return dateObj.toLocaleString();
+    };
+
+    // Helper to check if appointment can be completed
+    const canComplete = (dateData) => {
+        const apptDate = getAppointmentDateObj(dateData);
+        if (!apptDate) return false;
+        
+        const now = new Date();
+        return now >= apptDate;
     };
 
     useEffect(() => {
@@ -54,8 +74,14 @@ const AppointmentsListPage = () => {
     const fetchAppointments = async () => {
         try {
             setLoading(true);
-            const data = await getAllAppointments();
-            setAppointments(data);
+            const [appointmentsData, schedulesData, doctorsData] = await Promise.all([
+                getAllAppointments(),
+                getAllSchedules().catch(() => []),
+                getAllDoctors().catch(() => [])
+            ]);
+            setAppointments(appointmentsData);
+            setSchedules(schedulesData);
+            setDoctors(doctorsData);
             setError(null);
         } catch (err) {
             console.error('Failed to fetch appointments', err);
@@ -107,18 +133,30 @@ const AppointmentsListPage = () => {
         setActionType(type);
     };
 
+    // Helper to resolve doctor name
+    const getDoctorName = (apt) => {
+        if (apt.doctor && apt.doctor.name) return apt.doctor.name;
+        
+        if (apt.scheduleId) {
+            const schedule = schedules.find(s => s.id === apt.scheduleId);
+            if (schedule && schedule.doctorId) {
+                const doctor = doctors.find(d => d.id === schedule.doctorId);
+                if (doctor) return doctor.name;
+            }
+        }
+        return '';
+    };
+
     const filteredAppointments = appointments.filter(apt => {
         // Safe check for properties as backend response structure might vary
         const search = searchTerm.toLowerCase();
-        // Assuming some typical fields or adjusting based on requirements
-        // The requirements only listed: { scheduleId, patientId, appointmentTime, status }
-        // But listing page usually shows names. 
-        // If the API returns raw IDs, searching by name won't work unless we enrich data.
-        // For now, search by ID or Status
+        const doctorName = getDoctorName(apt).toLowerCase();
+
         return String(apt.id).includes(search) || 
                String(apt.status).toLowerCase().includes(search) ||
                String(apt.patientId).includes(search) ||
-               String(apt.scheduleId).includes(search);
+               String(apt.scheduleId).includes(search) ||
+               doctorName.includes(search);
     });
 
     if (loading) return <Spinner fullScreen />;
@@ -155,7 +193,7 @@ const AppointmentsListPage = () => {
                     <div className="relative max-w-sm">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                         <Input 
-                            placeholder="Search ID, Status..." 
+                            placeholder="Search ID, Status, Doctor..." 
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             className="pl-9"
@@ -182,6 +220,7 @@ const AppointmentsListPage = () => {
                             <TableRow>
                                 <TableHead>ID</TableHead>
                                 <TableHead>Schedule ID</TableHead>
+                                <TableHead>Doctor Name</TableHead>
                                 <TableHead>Patient ID</TableHead>
                                 <TableHead>Date & Time</TableHead>
                                 <TableHead>Status</TableHead>
@@ -193,6 +232,7 @@ const AppointmentsListPage = () => {
                                 <TableRow key={apt.id}>
                                     <td className="p-4 font-medium text-gray-900">#{apt.id}</td>
                                     <td className="p-4 text-gray-500">{apt.scheduleId}</td>
+                                    <td className="p-4 text-gray-500">{getDoctorName(apt) || 'Unknown Doctor'}</td>
                                     <td className="p-4 text-gray-500">{apt.patientId}</td>
                                     <td className="p-4 text-gray-500">
                                         {formatDateTime(apt.appointmentTime)}
@@ -230,8 +270,9 @@ const AppointmentsListPage = () => {
                                                 variant="ghost" 
                                                 size="sm"
                                                 onClick={() => openConfirm(apt.id, 'complete')}
-                                                className="h-8 w-8 p-0 text-gray-500 hover:text-green-600"
-                                                title="Mark as Complete"
+                                                disabled={!canComplete(apt.appointmentTime)}
+                                                className={`h-8 w-8 p-0 ${!canComplete(apt.appointmentTime) ? 'text-gray-300' : 'text-gray-500 hover:text-green-600'}`}
+                                                title={!canComplete(apt.appointmentTime) ? "Can only complete after scheduled time has passed" : "Mark as Complete"}
                                             >
                                                 <Check className="h-4 w-4" />
                                             </Button>
