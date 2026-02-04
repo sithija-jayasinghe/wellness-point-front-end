@@ -8,6 +8,7 @@ import PageHeader from '../../components/PageHeader';
 import Button from '../../components/Button';
 import Input from '../../components/Input';
 import Select from '../../components/Select';
+import SearchableSelect from '../../components/SearchableSelect';
 import { useToast } from '../../components/useToast';
 import Spinner from '../../components/Spinner';
 
@@ -178,8 +179,8 @@ const ScheduleFormPage = () => {
             let errorMessage = err.response?.data?.message || (isEditMode ? 'Failed to update schedule' : 'Failed to create schedule');
 
             // Handle Field Validation Errors (e.g. Spring Boot)
+            // Case 1: Array of {field, defaultMessage} or {field, message}
             if (err.response?.data?.errors && Array.isArray(err.response.data.errors)) {
-                // If errors is list of objects with defaultMessage
                 const validationMessages = err.response.data.errors
                     .map(e => e.defaultMessage || e.message)
                     .filter(Boolean);
@@ -187,6 +188,15 @@ const ScheduleFormPage = () => {
                 if (validationMessages.length > 0) {
                      errorMessage = validationMessages.join(', ');
                 }
+            } 
+            // Case 2: Object map { field: message }
+            else if (err.response?.data?.errors && typeof err.response.data.errors === 'object') {
+                 const msgs = Object.values(err.response.data.errors).join(', ');
+                 if (msgs) errorMessage = msgs;
+            }
+            // Case 3: Just "message" but "Validation Failed" is generic, maybe details are in "error" or just printed
+            else if (errorMessage === 'Validation Failed' && err.response?.data?.error) {
+                errorMessage = err.response.data.error;
             }
             
             toast({
@@ -219,18 +229,17 @@ const ScheduleFormPage = () => {
                             <label className="block text-sm font-medium text-gray-700 mb-1">
                                 Doctor <span className="text-red-500">*</span>
                             </label>
-                            <Select
+                            <SearchableSelect
                                 name="doctorId"
                                 value={formData.doctorId}
                                 onChange={handleChange}
+                                placeholder="Select Doctor..."
                                 className={errors.doctorId ? 'border-red-300 focus:ring-red-500' : ''}
-                                required
-                            >
-                                <option value="">Select Doctor</option>
-                                {doctors.map(d => (
-                                    <option key={d.id} value={d.id}>{d.name}</option>
-                                ))}
-                            </Select>
+                                options={doctors.map(d => ({
+                                    value: d.id,
+                                    label: d.name
+                                }))}
+                            />
                             {errors.doctorId && <p className="mt-1 text-sm text-red-500">{errors.doctorId}</p>}
                         </div>
                         
