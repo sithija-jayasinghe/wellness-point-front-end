@@ -8,6 +8,7 @@ import PageHeader from '../../components/PageHeader';
 import Button from '../../components/Button';
 import Input from '../../components/Input';
 import Select from '../../components/Select';
+import SearchableSelect from '../../components/SearchableSelect';
 import { useToast } from '../../components/useToast';
 import Spinner from '../../components/Spinner';
 
@@ -219,18 +220,17 @@ const ScheduleFormPage = () => {
                             <label className="block text-sm font-medium text-gray-700 mb-1">
                                 Doctor <span className="text-red-500">*</span>
                             </label>
-                            <Select
+                            <SearchableSelect
                                 name="doctorId"
                                 value={formData.doctorId}
                                 onChange={handleChange}
+                                placeholder="Select Doctor..."
                                 className={errors.doctorId ? 'border-red-300 focus:ring-red-500' : ''}
-                                required
-                            >
-                                <option value="">Select Doctor</option>
-                                {doctors.map(d => (
-                                    <option key={d.id} value={d.id}>{d.name}</option>
-                                ))}
-                            </Select>
+                                options={doctors.map(d => ({
+                                    value: d.id,
+                                    label: d.name
+                                }))}
+                            />
                             {errors.doctorId && <p className="mt-1 text-sm text-red-500">{errors.doctorId}</p>}
                         </div>
                         
