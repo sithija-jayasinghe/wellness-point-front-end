@@ -19,7 +19,7 @@ const DoctorFormPage = () => {
         name: '',
         specialization: '',
         consultationFee: '',
-        status: 'Active'
+        status: 'ACTIVE'
     });
     const [loading, setLoading] = useState(false);
     const [initialLoading, setInitialLoading] = useState(isEditMode);
@@ -43,7 +43,7 @@ const DoctorFormPage = () => {
                     name: doctor.name || '',
                     specialization: doctor.specialization || '',
                     consultationFee: doctor.consultationFee || '',
-                    status: doctor.status || 'Active'
+                    status: doctor.status || 'ACTIVE'
                 });
             } else {
                 toast({
@@ -186,8 +186,8 @@ const DoctorFormPage = () => {
                         value={formData.status}
                         onChange={handleChange}
                         options={[
-                            { value: 'Active', label: 'Active' },
-                            { value: 'Inactive', label: 'Inactive' }
+                            { value: 'ACTIVE', label: 'Active' },
+                            { value: 'INACTIVE', label: 'Inactive' }
                         ]}
                     />
 
