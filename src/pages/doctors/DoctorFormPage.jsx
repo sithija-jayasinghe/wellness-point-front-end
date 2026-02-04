@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Save } from 'lucide-react';
 import { createDoctor, updateDoctor, getAllDoctors } from '../../api/doctors.api';
+import { getAllClinics } from '../../api/clinics.api';
 import PageHeader from '../../components/PageHeader';
 import Button from '../../components/Button';
 import Input from '../../components/Input';
@@ -17,20 +18,32 @@ const DoctorFormPage = () => {
 
     const [formData, setFormData] = useState({
         name: '',
+        clinicId: '',
         specialization: '',
         consultationFee: '',
         status: 'ACTIVE'
     });
+    const [clinics, setClinics] = useState([]);
     const [loading, setLoading] = useState(false);
-    const [initialLoading, setInitialLoading] = useState(isEditMode);
+    const [initialLoading, setInitialLoading] = useState(true);
     const [errors, setErrors] = useState({});
 
     useEffect(() => {
-        if (isEditMode) {
-            fetchDoctor();
-        } else {
-            setInitialLoading(false);
-        }
+        const loadData = async () => {
+            try {
+                const clinicsData = await getAllClinics();
+                setClinics(clinicsData || []);
+
+                if (isEditMode) {
+                   await fetchDoctor();
+                } 
+            } catch (error) {
+                console.error("Failed to load data", error);
+            } finally {
+                setInitialLoading(false);
+            }
+        };
+        loadData();
     }, [isEditMode, id]);
 
     const fetchDoctor = async () => {
@@ -41,6 +54,7 @@ const DoctorFormPage = () => {
             if (doctor) {
                 setFormData({
                     name: doctor.name || '',
+                    clinicId: doctor.clinicId || '',
                     specialization: doctor.specialization || '',
                     consultationFee: doctor.consultationFee || '',
                     status: doctor.status || 'ACTIVE'
@@ -81,6 +95,7 @@ const DoctorFormPage = () => {
     const validateForm = () => {
         const newErrors = {};
         if (!formData.name.trim()) newErrors.name = 'Name is required';
+        if (!formData.clinicId) newErrors.clinicId = 'Clinic is required';
         if (!formData.specialization.trim()) newErrors.specialization = 'Specialization is required';
         if (!formData.consultationFee) newErrors.consultationFee = 'Consultation fee is required';
         
@@ -97,6 +112,7 @@ const DoctorFormPage = () => {
             setLoading(true);
             const dataToSubmit = {
                 ...formData,
+                clinicId: Number(formData.clinicId),
                 consultationFee: Number(formData.consultationFee)
             };
 
@@ -156,6 +172,21 @@ const DoctorFormPage = () => {
                         placeholder="e.g. Dr. John Doe"
                         required
                     />
+
+                    <Select
+                        label="Clinic"
+                        name="clinicId"
+                        value={formData.clinicId}
+                        onChange={handleChange}
+                        error={errors.clinicId}
+                        required
+                    >
+                        <option value="">Select Clinic</option>
+                        {clinics.map(clinic => (
+                            <option key={clinic.id} value={clinic.id}>{clinic.name}</option>
+                        ))}
+                    </Select>
+                    {errors.clinicId && <p className="mt-1 text-sm text-red-500">{errors.clinicId}</p>}
 
                     <Input
                         label="Specialization"

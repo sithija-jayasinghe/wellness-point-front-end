@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Search, Edit, Trash2, User } from 'lucide-react';
 import { getAllDoctors, deleteDoctor } from '../../api/doctors.api';
+import { getAllClinics } from '../../api/clinics.api';
 import PageHeader from '../../components/PageHeader';
 import Button from '../../components/Button';
 import Input from '../../components/Input';
@@ -23,6 +24,7 @@ const DoctorsListPage = () => {
     const { toast } = useToast();
     
     const [doctors, setDoctors] = useState([]);
+    const [clinics, setClinics] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
@@ -37,12 +39,16 @@ const DoctorsListPage = () => {
     const fetchDoctors = async () => {
         try {
             setLoading(true);
-            const data = await getAllDoctors();
-            setDoctors(data);
+            const [doctorsData, clinicsData] = await Promise.all([
+                getAllDoctors(),
+                getAllClinics().catch(() => [])
+            ]);
+            setDoctors(doctorsData);
+            setClinics(clinicsData);
             setError(null);
         } catch (err) {
-            console.error('Failed to fetch doctors', err);
-            setError('Failed to load doctors. Please try again.');
+            console.error('Failed to fetch data', err);
+            setError('Failed to load data. Please try again.');
         } finally {
             setLoading(false);
         }
@@ -128,6 +134,7 @@ const DoctorsListPage = () => {
                         <TableHeader>
                             <TableRow>
                                 <TableHead>Name</TableHead>
+                                <TableHead>Clinic</TableHead>
                                 <TableHead>Specialization</TableHead>
                                 <TableHead>Consultation Fee</TableHead>
                                 <TableHead>Status</TableHead>
@@ -135,10 +142,15 @@ const DoctorsListPage = () => {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {filteredDoctors.map((doctor) => (
+                            {filteredDoctors.map((doctor) => {
+                                const clinic = clinics.find(c => String(c.id) === String(doctor.clinicId));
+                                return (
                                 <TableRow key={doctor.id}>
                                     <td className="px-6 py-4">
                                         <div className="font-medium text-gray-900">{doctor.name}</div>
+                                    </td>
+                                    <td className="px-6 py-4 text-gray-600">
+                                        {clinic ? clinic.name : (doctor.clinicId ? `ID: ${doctor.clinicId}` : '-')}
                                     </td>
                                     <td className="px-6 py-4 text-gray-600">
                                         {doctor.specialization}
@@ -176,7 +188,8 @@ const DoctorsListPage = () => {
                                         </div>
                                     </td>
                                 </TableRow>
-                            ))}
+                            );
+                            })}
                         </TableBody>
                     </Table>
                 )}
