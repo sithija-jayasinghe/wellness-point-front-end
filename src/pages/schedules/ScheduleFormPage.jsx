@@ -179,8 +179,8 @@ const ScheduleFormPage = () => {
             let errorMessage = err.response?.data?.message || (isEditMode ? 'Failed to update schedule' : 'Failed to create schedule');
 
             // Handle Field Validation Errors (e.g. Spring Boot)
+            // Case 1: Array of {field, defaultMessage} or {field, message}
             if (err.response?.data?.errors && Array.isArray(err.response.data.errors)) {
-                // If errors is list of objects with defaultMessage
                 const validationMessages = err.response.data.errors
                     .map(e => e.defaultMessage || e.message)
                     .filter(Boolean);
@@ -188,6 +188,15 @@ const ScheduleFormPage = () => {
                 if (validationMessages.length > 0) {
                      errorMessage = validationMessages.join(', ');
                 }
+            } 
+            // Case 2: Object map { field: message }
+            else if (err.response?.data?.errors && typeof err.response.data.errors === 'object') {
+                 const msgs = Object.values(err.response.data.errors).join(', ');
+                 if (msgs) errorMessage = msgs;
+            }
+            // Case 3: Just "message" but "Validation Failed" is generic, maybe details are in "error" or just printed
+            else if (errorMessage === 'Validation Failed' && err.response?.data?.error) {
+                errorMessage = err.response.data.error;
             }
             
             toast({
