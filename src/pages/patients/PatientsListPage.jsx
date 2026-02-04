@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search, Edit, Trash2, User, FileText } from 'lucide-react';
+import { Search, Edit, Trash2, User, FileText } from 'lucide-react';
 import { getAllPatients, deletePatient } from '../../api/patients.api';
 import PageHeader from '../../components/PageHeader';
 import Button from '../../components/Button';
@@ -96,11 +96,7 @@ const PatientsListPage = () => {
             <PageHeader 
                 title="Patients" 
                 description="Manage patient records and medical history."
-                actions={
-                    <Button onClick={() => navigate('/patients/new')} icon={Plus}>
-                        Add Patient
-                    </Button>
-                }
+                actions={null}
             />
 
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
@@ -122,11 +118,7 @@ const PatientsListPage = () => {
                             title={searchTerm ? "No patients found" : "No patients yet"}
                             description={searchTerm ? "Try adjusting your search terms" : "Get started by registering a new patient"}
                             icon={User}
-                            action={!searchTerm && (
-                                <Button onClick={() => navigate('/patients/new')} variant="outline">
-                                    Add Patient
-                                </Button>
-                            )}
+                            action={null}
                         />
                     </div>
                 ) : (

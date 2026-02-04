@@ -396,7 +396,13 @@ const AppointmentFormPage = () => {
                                 >
                                     {/* Updated to match Backend Enums: [BOOKED, CANCELLED, COMPLETED] */}
                                     <option value="BOOKED">Booked</option>
-                                    <option value="COMPLETED">Completed</option>
+                                    <option 
+                                        value="COMPLETED" 
+                                        disabled={formData.appointmentTime && new Date(formData.appointmentTime) > new Date()}
+                                        title={formData.appointmentTime && new Date(formData.appointmentTime) > new Date() ? "Cannot complete future appointments" : ""}
+                                    >
+                                        Completed
+                                    </option>
                                     <option value="CANCELLED">Cancelled</option>
                                 </Select>
                             </div>

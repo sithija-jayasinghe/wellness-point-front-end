@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search, FileText, Trash2, Edit, X, RefreshCw } from 'lucide-react';
+import { Search, FileText, Trash2, Edit, X, RefreshCw } from 'lucide-react';
 import { getAllPrescriptions, deletePrescription } from '../../api/prescriptions.api';
 import PageHeader from '../../components/PageHeader';
 import Button from '../../components/Button';
@@ -91,9 +91,6 @@ const PrescriptionsListPage = () => {
                          <Button variant="outline" onClick={fetchPrescriptions} title="Refresh List" icon={RefreshCw}>
                             Refresh
                         </Button>
-                        <Button onClick={() => navigate('/prescriptions/new')} icon={Plus}>
-                            Add Prescription
-                        </Button>
                     </div>
                 }
             />
@@ -117,11 +114,7 @@ const PrescriptionsListPage = () => {
                             title={searchTerm ? "No prescriptions found" : "No prescriptions yet"}
                             description={searchTerm ? "Try adjusting your search terms" : "Create a new prescription to get started"}
                             icon={FileText}
-                            action={!searchTerm && (
-                                <Button onClick={() => navigate('/prescriptions/new')} variant="outline">
-                                    Add Prescription
-                                </Button>
-                            )}
+                            action={null}
                         />
                     </div>
                 ) : (
