@@ -279,7 +279,9 @@ const AppointmentFormPage = () => {
                                         });
                                     };
 
-                                    const displayStr = formatDateTime(s.startDateTime);
+                                    const startStr = formatDateTime(s.startDateTime);
+                                    const endStr = formatDateTime(s.endDateTime);
+                                    const displayStr = endStr ? `${startStr} - ${endStr}` : startStr;
 
                                     return (
                                         <option key={s.id} value={s.id}>
