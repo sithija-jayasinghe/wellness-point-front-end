@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Save } from 'lucide-react';
 import { createClinic, updateClinic, getAllClinics } from '../../api/clinics.api';
-import PageHeader from '../../components/PageHeader';
 import Button from '../../components/Button';
 import Input from '../../components/Input';
 import Select from '../../components/Select';
@@ -26,45 +25,45 @@ const ClinicFormPage = () => {
     const [errors, setErrors] = useState({});
 
     useEffect(() => {
+        const fetchClinic = async () => {
+            try {
+                const clinics = await getAllClinics();
+                const clinic = clinics.find(c => c.id === parseInt(id) || c.id === id);
+                
+                if (clinic) {
+                    setFormData({
+                        name: clinic.name || '',
+                        address: clinic.address || '',
+                        phone: clinic.phone || '',
+                        status: clinic.status || 'Active'
+                    });
+                } else {
+                    toast({
+                        title: 'Error',
+                        description: 'Clinic not found',
+                        variant: 'destructive'
+                    });
+                    navigate('/clinics');
+                }
+            } catch (err) {
+                console.error('Failed to fetch clinic details', err);
+                toast({
+                    title: 'Error',
+                    description: 'Failed to load clinic details',
+                    variant: 'destructive'
+                });
+                navigate('/clinics');
+            } finally {
+                setInitialLoading(false);
+            }
+        };
+
         if (isEditMode) {
             fetchClinic();
         } else {
             setInitialLoading(false);
         }
-    }, [isEditMode, id]);
-
-    const fetchClinic = async () => {
-        try {
-            const clinics = await getAllClinics();
-            const clinic = clinics.find(c => c.id === parseInt(id) || c.id === id);
-            
-            if (clinic) {
-                setFormData({
-                    name: clinic.name || '',
-                    address: clinic.address || '',
-                    phone: clinic.phone || '',
-                    status: clinic.status || 'Active'
-                });
-            } else {
-                toast({
-                    title: 'Error',
-                    description: 'Clinic not found',
-                    variant: 'destructive'
-                });
-                navigate('/clinics');
-            }
-        } catch (err) {
-            console.error('Failed to fetch clinic details', err);
-            toast({
-                title: 'Error',
-                description: 'Failed to load clinic details',
-                variant: 'destructive'
-            });
-            navigate('/clinics');
-        } finally {
-            setInitialLoading(false);
-        }
-    };
+    }, [isEditMode, id, navigate, toast]);
 
     const handleChange = (e) => {
         const { name, value } = e.target;
