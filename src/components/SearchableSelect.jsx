@@ -9,7 +9,8 @@ const SearchableSelect = ({
     name,
     placeholder = "Select option...", 
     className,
-    disabled = false
+    disabled = false,
+    multiple = false
 }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
@@ -28,23 +29,51 @@ const SearchableSelect = ({
     }, []);
 
     // Find selected label
-    const selectedOption = options.find(opt => opt.value === value);
+    const getDisplayValue = () => {
+        if (multiple) {
+            if (!value || !Array.isArray(value) || value.length === 0) return placeholder;
+            const selectedLabels = options
+                .filter(opt => value.includes(opt.value))
+                .map(opt => opt.label);
+            return selectedLabels.length > 0 ? selectedLabels.join(', ') : placeholder;
+        }
+        const selectedOption = options.find(opt => opt.value === value);
+        return selectedOption ? selectedOption.label : placeholder;
+    };
 
     const filteredOptions = options.filter(opt => 
         (opt.label || '').toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     const handleSelect = (optionValue) => {
-        if (onChange) {
-            onChange({ 
-                target: { 
-                    name: name, 
-                    value: optionValue 
-                } 
-            });
+        if (multiple) {
+            const currentValues = Array.isArray(value) ? value : [];
+            const newValue = currentValues.includes(optionValue)
+                ? currentValues.filter(v => v !== optionValue)
+                : [...currentValues, optionValue];
+            
+            if (onChange) {
+                onChange({ 
+                    target: { 
+                        name: name, 
+                        value: newValue 
+                    } 
+                });
+            }
+            // Keep open for multiple selection
+            // Optional: setSearchTerm(''); 
+        } else {
+            if (onChange) {
+                onChange({ 
+                    target: { 
+                        name: name, 
+                        value: optionValue 
+                    } 
+                });
+            }
+            setIsOpen(false);
+            setSearchTerm('');
         }
-        setIsOpen(false);
-        setSearchTerm('');
     };
 
     return (
@@ -58,8 +87,8 @@ const SearchableSelect = ({
                 )}
                 onClick={() => !disabled && setIsOpen(!isOpen)}
             >
-                <span className={selectedOption ? "text-gray-900" : "text-gray-400"}>
-                    {selectedOption ? selectedOption.label : placeholder}
+                <span className={((!multiple && value) || (multiple && value?.length > 0)) ? "text-gray-900" : "text-gray-400"}>
+                    {getDisplayValue()}
                 </span>
                 <ChevronDown className="h-4 w-4 text-gray-400 opacity-50" />
             </div>
@@ -86,21 +115,26 @@ const SearchableSelect = ({
                                 No results found.
                             </div>
                         ) : (
-                            filteredOptions.map((option) => (
-                                <div
-                                    key={option.value}
-                                    className={cn(
-                                        "flex items-center justify-between px-4 py-2 text-sm cursor-pointer hover:bg-gray-50",
-                                        option.value === value ? "bg-cyan-50 text-cyan-700" : "text-gray-900"
-                                    )}
-                                    onClick={() => handleSelect(option.value)}
-                                >
-                                    <span>{option.label}</span>
-                                    {option.value === value && (
-                                        <Check className="h-4 w-4 text-cyan-600" />
-                                    )}
-                                </div>
-                            ))
+                            filteredOptions.map((option) => {
+                                const isSelected = multiple 
+                                    ? (value || []).includes(option.value)
+                                    : option.value === value;
+                                return (
+                                    <div
+                                        key={option.value}
+                                        className={cn(
+                                            "flex items-center justify-between px-4 py-2 text-sm cursor-pointer hover:bg-gray-50",
+                                            isSelected ? "bg-cyan-50 text-cyan-700" : "text-gray-900"
+                                        )}
+                                        onClick={() => handleSelect(option.value)}
+                                    >
+                                        <span>{option.label}</span>
+                                        {isSelected && (
+                                            <Check className="h-4 w-4 text-cyan-600" />
+                                        )}
+                                    </div>
+                                );
+                            })
                         )}
                     </div>
                 </div>
