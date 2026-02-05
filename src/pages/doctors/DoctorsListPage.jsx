@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Search, Edit, Trash2, User } from 'lucide-react';
 import { getAllDoctors, deleteDoctor } from '../../api/doctors.api';
+import { getAllClinics } from '../../api/clinics.api';
 import PageHeader from '../../components/PageHeader';
 import Button from '../../components/Button';
 import Input from '../../components/Input';
@@ -23,6 +24,7 @@ const DoctorsListPage = () => {
     const { toast } = useToast();
 
     const [doctors, setDoctors] = useState([]);
+    const [clinics, setClinics] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
@@ -31,14 +33,18 @@ const DoctorsListPage = () => {
     const [deleting, setDeleting] = useState(false);
 
     useEffect(() => {
-        fetchDoctors();
+        fetchData();
     }, []);
 
-    const fetchDoctors = async () => {
+    const fetchData = async () => {
         try {
             setLoading(true);
-            const doctorsData = await getAllDoctors();
+            const [doctorsData, clinicsData] = await Promise.all([
+                getAllDoctors(),
+                getAllClinics()
+            ]);
             setDoctors(doctorsData);
+            setClinics(clinicsData);
             setError(null);
         } catch (err) {
             console.error('Failed to fetch data', err);
@@ -84,7 +90,7 @@ const DoctorsListPage = () => {
         <ErrorState
             title="Something went wrong"
             description={error}
-            onRetry={fetchDoctors}
+            onRetry={fetchData}
         />
     );
 
@@ -150,14 +156,24 @@ const DoctorsListPage = () => {
                                         <td className="px-6 py-4 text-gray-600">
                                             <div className="flex flex-wrap gap-1">
                                                 {doctor.clinics && doctor.clinics.length > 0 ? (
-                                                    doctor.clinics.map(clinic => (
-                                                        <span
-                                                            key={clinic.id}
-                                                            className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100"
-                                                        >
-                                                            {clinic.name}
-                                                        </span>
-                                                    ))
+                                                    doctor.clinics.map(clinic => {
+                                                        const currentClinic = clinics.find(c => c.id === clinic.id);
+                                                        const status = currentClinic ? currentClinic.status : clinic.status;
+                                                        const isInactive = status === 'Inactive' || status === 'INACTIVE';
+                                                        
+                                                        return (
+                                                            <span
+                                                                key={clinic.id}
+                                                                className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${
+                                                                    isInactive 
+                                                                        ? 'bg-gray-100 text-gray-500 border-gray-200 opacity-60' 
+                                                                        : 'bg-blue-50 text-blue-700 border-blue-100'
+                                                                }`}
+                                                            >
+                                                                {clinic.name} {isInactive && "(Inactive)"}
+                                                            </span>
+                                                        );
+                                                    })
                                                 ) : (
                                                     <span className="text-gray-400">-</span>
                                                 )}

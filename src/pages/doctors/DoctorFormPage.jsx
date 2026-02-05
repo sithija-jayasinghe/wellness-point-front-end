@@ -188,7 +188,11 @@ const DoctorFormPage = () => {
                         </label>
                         <SearchableSelect
                             name="clinicIds"
-                            options={clinics.map(clinic => ({ value: clinic.id, label: clinic.name }))}
+                            options={clinics.map(clinic => ({ 
+                                value: clinic.id, 
+                                label: clinic.name,
+                                status: clinic.status 
+                            }))}
                             value={formData.clinicIds}
                             onChange={handleChange}
                             placeholder="Select Clinics"

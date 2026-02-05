@@ -32,13 +32,22 @@ const SearchableSelect = ({
     const getDisplayValue = () => {
         if (multiple) {
             if (!value || !Array.isArray(value) || value.length === 0) return placeholder;
+            // Map selected values to React Nodes/Strings
             const selectedLabels = options
                 .filter(opt => value.includes(opt.value))
-                .map(opt => opt.label);
+                .map(opt => {
+                     const isInactive = opt.status === 'Inactive' || opt.status === 'INACTIVE';
+                     return isInactive 
+                        ? `${opt.label} (Inactive)` 
+                        : opt.label;
+                });
             return selectedLabels.length > 0 ? selectedLabels.join(', ') : placeholder;
         }
         const selectedOption = options.find(opt => opt.value === value);
-        return selectedOption ? selectedOption.label : placeholder;
+        if(!selectedOption) return placeholder;
+
+        const isInactive = selectedOption.status === 'Inactive' || selectedOption.status === 'INACTIVE';
+        return isInactive ? `${selectedOption.label} (Inactive)` : selectedOption.label;
     };
 
     const filteredOptions = options.filter(opt => 
@@ -119,16 +128,19 @@ const SearchableSelect = ({
                                 const isSelected = multiple 
                                     ? (value || []).includes(option.value)
                                     : option.value === value;
+                                const isInactive = option.status === 'Inactive' || option.status === 'INACTIVE';
+                                
                                 return (
                                     <div
                                         key={option.value}
                                         className={cn(
                                             "flex items-center justify-between px-4 py-2 text-sm cursor-pointer hover:bg-gray-50",
-                                            isSelected ? "bg-cyan-50 text-cyan-700" : "text-gray-900"
+                                            isSelected ? "bg-cyan-50 text-cyan-700" : "text-gray-900",
+                                            isInactive && "text-gray-500 opacity-60"
                                         )}
                                         onClick={() => handleSelect(option.value)}
                                     >
-                                        <span>{option.label}</span>
+                                        <span>{option.label} {isInactive && "(Inactive)"}</span>
                                         {isSelected && (
                                             <Check className="h-4 w-4 text-cyan-600" />
                                         )}
