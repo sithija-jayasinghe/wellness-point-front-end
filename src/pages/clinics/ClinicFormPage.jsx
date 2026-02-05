@@ -131,38 +131,6 @@ const ClinicFormPage = () => {
                                 variant: 'default'
                             });
                         }
-
-                        // NEW: Find doctors assigned to this clinic AND others (multiple clinics)
-                        // Verify they have the current clinic in their list
-                        const doctorsToUnlink = allDoctors.filter(doc => 
-                            doc.clinics && 
-                            doc.clinics.length > 1 && 
-                            doc.clinics.some(c => c.id === currentClinicId)
-                        );
-
-                        if (doctorsToUnlink.length > 0) {
-                             console.log(`Unlinking ${doctorsToUnlink.length} doctors from this inactive clinic`);
-                             
-                             await Promise.all(doctorsToUnlink.map(doc => {
-                                 // Remove the inactive clinic from their list
-                                 const updatedClinics = doc.clinics.filter(c => c.id !== currentClinicId);
-                                 
-                                 const payload = {
-                                     name: doc.name,
-                                     specialization: doc.specialization,
-                                     consultationFee: doc.consultationFee,
-                                     status: doc.status, // Keep existing status
-                                     clinics: updatedClinics
-                                 };
-                                 return updateDoctor(doc.id, payload);
-                             }));
-
-                             toast({
-                                title: 'Info',
-                                description: `${doctorsToUnlink.length} doctor(s) unlinked from this inactive clinic.`,
-                                variant: 'default'
-                            });
-                        }
                     } catch (cascadeErr) {
                         console.error('Failed to cascade deactivate doctors', cascadeErr);
                         // Continue saving clinic even if cascade fails, but warn user
