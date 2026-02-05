@@ -121,8 +121,15 @@ const DoctorFormPage = () => {
             // FIX: Revert to 'id' as per strict backend requirement
             const clinicsPayload = selectedClinicId ? [{ id: selectedClinicId }] : [];
 
+            // Auto-prepend 'Dr.' if missing
+            let formattedName = formData.name.trim();
+            if (!formattedName.startsWith('Dr.')) {
+                formattedName = `Dr. ${formattedName}`;
+            }
+
             const dataToSubmit = {
                 ...formData,
+                name: formattedName,
                 consultationFee: Number(formData.consultationFee),
                 clinics: clinicsPayload,
             };
