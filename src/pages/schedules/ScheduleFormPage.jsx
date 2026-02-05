@@ -44,7 +44,10 @@ const ScheduleFormPage = () => {
                 isEditMode ? getAllSchedules() : Promise.resolve([])
             ]);
             
-            setDoctors(doctorsData);
+            // Filter active doctors
+            const activeDoctors = (doctorsData || []).filter(d => d.status === 'ACTIVE' || d.status === 'Active');
+            
+            setDoctors(activeDoctors);
             setClinics(clinicsData);
 
             if (isEditMode) {
@@ -87,10 +90,10 @@ const ScheduleFormPage = () => {
                     navigate('/schedules');
                 }
             } else {
-                // Auto-select first doctor and clinic if they exist (Alternative to placeholder)
+                // Auto-select first doctor (from active ones) and clinic if they exist (Alternative to placeholder)
                 setFormData(prev => ({
                     ...prev,
-                    doctorId: doctorsData.length > 0 ? doctorsData[0].id : '',
+                    doctorId: activeDoctors.length > 0 ? activeDoctors[0].id : '',
                     clinicId: clinicsData.length > 0 ? clinicsData[0].id : ''
                 }));
             }
