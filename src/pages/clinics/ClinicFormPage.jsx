@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Save } from 'lucide-react';
 import { createClinic, updateClinic, getAllClinics } from '../../api/clinics.api';
+import { getAllDoctors, updateDoctor } from '../../api/doctors.api';
 import Button from '../../components/Button';
 import Input from '../../components/Input';
 import Select from '../../components/Select';
@@ -94,6 +95,85 @@ const ClinicFormPage = () => {
         try {
             setLoading(true);
             if (isEditMode) {
+                // If status is being set to Inactive, cascade to linked doctors
+                if (formData.status === 'Inactive') {
+                    try {
+                        const allDoctors = await getAllDoctors();
+                        const currentClinicId = Number(id);
+                        
+                        // Find doctors who are ONLY assigned to this clinic
+                        const doctorsToDeactivate = allDoctors.filter(doc => 
+                            doc.status === 'ACTIVE' && 
+                            doc.clinics && 
+                            doc.clinics.length === 1 && 
+                            doc.clinics[0].id === currentClinicId
+                        );
+
+                        if (doctorsToDeactivate.length > 0) {
+                            console.log(`Deactivating ${doctorsToDeactivate.length} doctors linked only to this clinic`);
+                            
+                            // Process updates in parallel
+                            await Promise.all(doctorsToDeactivate.map(doc => {
+                                // Prepare payload strictly required for update
+                                const payload = {
+                                    name: doc.name,
+                                    specialization: doc.specialization,
+                                    consultationFee: doc.consultationFee,
+                                    status: 'INACTIVE',
+                                    clinics: doc.clinics
+                                };
+                                return updateDoctor(doc.id, payload);
+                            }));
+                            
+                            toast({
+                                title: 'Info',
+                                description: `${doctorsToDeactivate.length} linked doctor(s) were also deactivated.`,
+                                variant: 'default'
+                            });
+                        }
+
+                        // NEW: Find doctors assigned to this clinic AND others (multiple clinics)
+                        // Verify they have the current clinic in their list
+                        const doctorsToUnlink = allDoctors.filter(doc => 
+                            doc.clinics && 
+                            doc.clinics.length > 1 && 
+                            doc.clinics.some(c => c.id === currentClinicId)
+                        );
+
+                        if (doctorsToUnlink.length > 0) {
+                             console.log(`Unlinking ${doctorsToUnlink.length} doctors from this inactive clinic`);
+                             
+                             await Promise.all(doctorsToUnlink.map(doc => {
+                                 // Remove the inactive clinic from their list
+                                 const updatedClinics = doc.clinics.filter(c => c.id !== currentClinicId);
+                                 
+                                 const payload = {
+                                     name: doc.name,
+                                     specialization: doc.specialization,
+                                     consultationFee: doc.consultationFee,
+                                     status: doc.status, // Keep existing status
+                                     clinics: updatedClinics
+                                 };
+                                 return updateDoctor(doc.id, payload);
+                             }));
+
+                             toast({
+                                title: 'Info',
+                                description: `${doctorsToUnlink.length} doctor(s) unlinked from this inactive clinic.`,
+                                variant: 'default'
+                            });
+                        }
+                    } catch (cascadeErr) {
+                        console.error('Failed to cascade deactivate doctors', cascadeErr);
+                        // Continue saving clinic even if cascade fails, but warn user
+                        toast({
+                            title: 'Warning',
+                            description: 'Clinic saved, but failed to update linked doctors status automatically.',
+                            variant: 'warning'
+                        });
+                    }
+                }
+
                 await updateClinic(id, formData);
                 toast({
                     title: 'Success',
