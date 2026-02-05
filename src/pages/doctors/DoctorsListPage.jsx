@@ -137,10 +137,15 @@ const DoctorsListPage = () => {
                         </TableHeader>
                         <TableBody>
                             {filteredDoctors.map((doctor) => {
+                                // Display 'Dr.' if name doesn't start with it
+                                const displayName = doctor.name.startsWith('Dr.') 
+                                    ? doctor.name 
+                                    : `Dr. ${doctor.name}`;
+                                
                                 return (
                                     <TableRow key={doctor.id}>
                                         <td className="px-6 py-4">
-                                            <div className="font-medium text-gray-900">{doctor.name}</div>
+                                            <div className="font-medium text-gray-900">{displayName}</div>
                                         </td>
                                         <td className="px-6 py-4 text-gray-600">
                                             <div className="flex flex-wrap gap-1">
