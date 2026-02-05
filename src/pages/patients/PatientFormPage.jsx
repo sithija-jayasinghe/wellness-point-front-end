@@ -183,7 +183,6 @@ const PatientFormPage = () => {
                     >
                         Back to List
                     </Button>
-```
                 }
             />
 
