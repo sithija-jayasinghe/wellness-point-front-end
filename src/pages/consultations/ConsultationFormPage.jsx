@@ -227,7 +227,12 @@ const ConsultationFormPage = () => {
         title={isEditMode ? 'Edit Consultation' : 'New Consultation'}
         description={isEditMode ? 'Update consultation details.' : 'Record a new diagnosis for an appointment.'}
         actions={
-          <Button variant="ghost" onClick={() => navigate('/consultations')} icon={ArrowLeft}>
+          <Button 
+            variant="outline" 
+            className="border-blue-500 text-blue-600 hover:bg-blue-50 hover:text-blue-700" 
+            onClick={() => navigate('/consultations')} 
+            icon={ArrowLeft}
+          >
             Back to List
           </Button>
         }

@@ -175,9 +175,15 @@ const PatientFormPage = () => {
                 title={isEditMode ? 'Edit Patient' : 'Register Patient'} 
                 description={isEditMode ? 'Update patient details.' : 'Register a new patient.'}
                 actions={
-                    <Button variant="ghost" onClick={() => navigate('/patients')} icon={ArrowLeft}>
+                    <Button 
+                        variant="outline" 
+                        className="border-blue-500 text-blue-600 hover:bg-blue-50 hover:text-blue-700" 
+                        onClick={() => navigate('/patients')} 
+                        icon={ArrowLeft}
+                    >
                         Back to List
                     </Button>
+```
                 }
             />
 

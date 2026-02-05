@@ -277,7 +277,12 @@ const AppointmentFormPage = () => {
                 title={isEditMode ? 'Edit Appointment' : 'Book Appointment'} 
                 description={isEditMode ? 'Update appointment details.' : 'Schedule a new appointment.'}
                 actions={
-                    <Button variant="ghost" onClick={() => navigate('/appointments')} icon={ArrowLeft}>
+                    <Button 
+                        variant="outline" 
+                        className="border-blue-500 text-blue-600 hover:bg-blue-50 hover:text-blue-700" 
+                        onClick={() => navigate('/appointments')} 
+                        icon={ArrowLeft}
+                    >
                         Back to List
                     </Button>
                 }

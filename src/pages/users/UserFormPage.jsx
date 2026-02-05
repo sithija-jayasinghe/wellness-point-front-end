@@ -271,7 +271,12 @@ const UserFormPage = () => {
                 title={isEditMode ? 'Edit User' : 'Register User'}
                 description={isEditMode ? 'Update user details.' : 'Register a new user in the system.'}
                 actions={
-                    <Button variant="ghost" onClick={() => navigate('/users')} icon={ArrowLeft}>
+                    <Button 
+                        variant="outline" 
+                        className="border-blue-500 text-blue-600 hover:bg-blue-50 hover:text-blue-700" 
+                        onClick={() => navigate('/users')} 
+                        icon={ArrowLeft}
+                    >
                         Back to List
                     </Button>
                 }
