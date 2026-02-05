@@ -7,6 +7,7 @@ import PageHeader from '../../components/PageHeader';
 import Button from '../../components/Button';
 import Input from '../../components/Input';
 import Select from '../../components/Select';
+import SearchableSelect from '../../components/SearchableSelect';
 import { useToast } from '../../components/useToast';
 import Spinner from '../../components/Spinner';
 
@@ -18,7 +19,7 @@ const DoctorFormPage = () => {
 
     const [formData, setFormData] = useState({
         name: '',
-        clinicId: '',
+        clinicIds: [],
         specialization: '',
         consultationFee: '',
         status: 'ACTIVE'
@@ -52,13 +53,13 @@ const DoctorFormPage = () => {
             const doctor = doctors.find(d => d.id === parseInt(id) || d.id === id);
 
             if (doctor) {
-                const currentClinicId = doctor.clinics && doctor.clinics.length > 0
-                    ? doctor.clinics[0].id
-                    : '';
+                const currentClinicIds = doctor.clinics && doctor.clinics.length > 0
+                    ? doctor.clinics.map(c => c.id)
+                    : [];
 
                 setFormData({
                     name: doctor.name || '',
-                    clinicId: currentClinicId, // Map back to singular ID for the dropdown
+                    clinicIds: currentClinicIds,
                     specialization: doctor.specialization || '',
                     consultationFee: doctor.consultationFee || '',
                     status: doctor.status || 'ACTIVE'
@@ -100,7 +101,7 @@ const DoctorFormPage = () => {
     const validateForm = () => {
         const newErrors = {};
         if (!formData.name.trim()) newErrors.name = 'Name is required';
-        if (!formData.clinicId) newErrors.clinicId = 'Clinic is required';
+        if (!formData.clinicIds || formData.clinicIds.length === 0) newErrors.clinicIds = 'At least one clinic is required';
         if (!formData.specialization.trim()) newErrors.specialization = 'Specialization is required';
         if (!formData.consultationFee) newErrors.consultationFee = 'Consultation fee is required';
 
@@ -115,11 +116,8 @@ const DoctorFormPage = () => {
         try {
             setLoading(true);
 
-            // FIX: Create a clinics array with the selected clinic object
-            // We assume basic object structure is enough for ID linking
-            const selectedClinicId = Number(formData.clinicId);
-            // FIX: Revert to 'id' as per strict backend requirement
-            const clinicsPayload = selectedClinicId ? [{ id: selectedClinicId }] : [];
+            // Create clinics array from selected IDs
+            const clinicsPayload = formData.clinicIds.map(id => ({ id: Number(id) }));
 
             // Auto-prepend 'Dr.' if missing
             let formattedName = formData.name.trim();
@@ -136,9 +134,7 @@ const DoctorFormPage = () => {
 
             console.log('Submitting Payload:', JSON.stringify(dataToSubmit, null, 2));
 
-            // Remove flat clinicId if the API strictly rejects unknown fields, 
-            // otherwise it's harmless to leave it, but 'clinics' is what matters.
-            delete dataToSubmit.clinicId;
+            delete dataToSubmit.clinicIds;
 
             if (isEditMode) {
                 await updateDoctor(id, dataToSubmit);
@@ -186,20 +182,21 @@ const DoctorFormPage = () => {
                         required
                     />
 
-                    <Select
-                        label="Clinic"
-                        name="clinicId"
-                        value={formData.clinicId}
-                        onChange={handleChange}
-                        error={errors.clinicId}
-                        required
-                    >
-                        <option value="">Select Clinic</option>
-                        {clinics.map(clinic => (
-                            <option key={clinic.id} value={clinic.id}>{clinic.name}</option>
-                        ))}
-                    </Select>
-                    {errors.clinicId && <p className="mt-1 text-sm text-red-500">{errors.clinicId}</p>}
+                    <div className="space-y-1">
+                        <label className="block text-sm font-medium text-gray-700">
+                            Clinics <span className="text-red-500">*</span>
+                        </label>
+                        <SearchableSelect
+                            name="clinicIds"
+                            options={clinics.map(clinic => ({ value: clinic.id, label: clinic.name }))}
+                            value={formData.clinicIds}
+                            onChange={handleChange}
+                            placeholder="Select Clinics"
+                            multiple
+                            className={errors.clinicIds ? "border-red-500" : ""}
+                        />
+                        {errors.clinicIds && <p className="text-sm text-red-500">{errors.clinicIds}</p>}
+                    </div>
 
                     <Input
                         label="Specialization"

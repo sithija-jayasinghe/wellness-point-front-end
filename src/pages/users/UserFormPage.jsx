@@ -8,6 +8,7 @@ import PageHeader from '../../components/PageHeader';
 import Button from '../../components/Button';
 import Input from '../../components/Input';
 import Select from '../../components/Select';
+import SearchableSelect from '../../components/SearchableSelect';
 import { useToast } from '../../components/useToast';
 import Spinner from '../../components/Spinner';
 
@@ -23,7 +24,7 @@ const UserFormPage = () => {
         password: '',
         role: '',
         status: 'ACTIVE',
-        clinicId: '',
+        clinicIds: [],
         specialization: '',
         consultationFee: ''
     });
@@ -67,7 +68,7 @@ const UserFormPage = () => {
                         password: '',
                         role: user.role || '',
                         status: user.status || 'ACTIVE',
-                        clinicId: ''
+                        clinicIds: []
                     });
 
                     // If user is a doctor, fetch doctor details to populate fields and get doctorId
@@ -79,12 +80,15 @@ const UserFormPage = () => {
                             const linkedDoctor = doctors.find(d => d.user?.userId === user.userId || d.user?.id === user.userId);
 
                             if (linkedDoctor) {
-                                const currentClinicId = linkedDoctor.clinics && linkedDoctor.clinics.length > 0 ? linkedDoctor.clinics[0].id : '';
+                                const currentClinicIds = linkedDoctor.clinics && linkedDoctor.clinics.length > 0 
+                                    ? linkedDoctor.clinics.map(c => c.id) 
+                                    : [];
+                                
                                 setFormData(prev => ({
                                     ...prev,
                                     specialization: linkedDoctor.specialization || '',
                                     consultationFee: linkedDoctor.consultationFee || '',
-                                    clinicId: currentClinicId,
+                                    clinicIds: currentClinicIds,
                                     doctorId: linkedDoctor.id // Store doctorId for updates
                                 }));
                             }
@@ -121,7 +125,7 @@ const UserFormPage = () => {
 
         if (!isEditMode && !formData.password) newErrors.password = 'Password is required';
         if (!isEditMode && !formData.role) newErrors.role = 'Role is required';
-        if (!isEditMode && !formData.clinicId) newErrors.clinicId = 'Clinic is required';
+        if (!isEditMode && (!formData.clinicIds || formData.clinicIds.length === 0)) newErrors.clinicIds = 'At least one clinic is required';
 
         if (formData.role === 'DOCTOR') {
             if (!formData.specialization) newErrors.specialization = 'Specialization is required for doctors';
@@ -140,14 +144,16 @@ const UserFormPage = () => {
             setLoading(true);
             const payload = {
                 ...formData,
-                clinicId: formData.clinicId ? parseInt(formData.clinicId) : null
+                clinicId: (formData.clinicIds && formData.clinicIds.length > 0) ? parseInt(formData.clinicIds[0]) : null
             };
 
             // Store doctor-specific fields before deletion
             const specialization = payload.specialization;
             const consultationFee = payload.consultationFee;
+            const clinicIds = formData.clinicIds || [];
 
             delete payload.specialization;
+            delete payload.clinicIds; 
             delete payload.consultationFee;
 
             if (isEditMode && !payload.password) {
@@ -164,7 +170,7 @@ const UserFormPage = () => {
                         specialization: specialization,
                         consultationFee: Number(consultationFee),
                         status: payload.status,
-                        clinics: payload.clinicId ? [{ id: payload.clinicId }] : []
+                        clinics: clinicIds.map(id => ({ id: Number(id) }))
                     };
                     await updateDoctor(formData.doctorId, doctorPayload);
                 }
@@ -201,16 +207,25 @@ const UserFormPage = () => {
                             specialization: formData.specialization,
                             consultationFee: Number(formData.consultationFee),
                             status: 'ACTIVE',
-                            // FIX: Send clinics as a list
-                            clinics: payload.clinicId ? [{ id: payload.clinicId }] : [],
-                            // FIX: Link the User ID from the registration step
+                            clinics: clinicIds.map(id => ({ id: Number(id) })),
                             user: { userId: userId }
                         };
 
                         try {
-                            await createDoctor(doctorData);
+                            // Check if a doctor profile was already automatically created by the backend trigger
+                            const allDoctors = await getAllDoctors();
+                            const existingDoctor = allDoctors.find(d => 
+                                (d.user?.userId === userId || d.user?.id === userId)
+                            );
+
+                            if (existingDoctor) {
+                                console.log("Doctor profile auto-created by backend. Updating with full details...");
+                                await updateDoctor(existingDoctor.id, doctorData);
+                            } else {
+                                await createDoctor(doctorData);
+                            }
                         } catch (docErr) {
-                            console.error('Failed to create doctor record', docErr);
+                            console.error('Failed to create/update doctor record', docErr);
                             toast({
                                 title: 'Warning',
                                 description: `User Link Failed: ${docErr.response?.data?.message || docErr.message}`,
@@ -341,19 +356,18 @@ const UserFormPage = () => {
 
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Clinic {isEditMode && <span className="text-gray-400 font-normal">(Updates ignored by backend)</span>} {!isEditMode && <span className="text-red-500">*</span>}
+                                        Clinics {isEditMode && <span className="text-gray-400 font-normal">(Updates ignored by backend)</span>} {!isEditMode && <span className="text-red-500">*</span>}
                                     </label>
-                                    <Select
-                                        name="clinicId"
-                                        value={formData.clinicId}
+                                    <SearchableSelect
+                                        name="clinicIds"
+                                        value={formData.clinicIds}
                                         onChange={handleChange}
-                                        className={errors.clinicId ? 'border-red-300 focus:ring-red-500' : ''}
-                                        options={[
-                                            { value: "", label: "Select Clinic" },
-                                            ...clinics.map(c => ({ value: c.id, label: c.name }))
-                                        ]}
+                                        className={errors.clinicIds ? 'border-red-500' : ''}
+                                        options={clinics.map(c => ({ value: c.id, label: c.name }))}
+                                        placeholder="Select Clinics"
+                                        multiple={true}
                                     />
-                                    {errors.clinicId && <p className="mt-1 text-sm text-red-500">{errors.clinicId}</p>}
+                                    {errors.clinicIds && <p className="mt-1 text-sm text-red-500">{errors.clinicIds}</p>}
                                 </div>
                             </div>
 
