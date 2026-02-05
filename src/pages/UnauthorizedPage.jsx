@@ -20,7 +20,8 @@ const UnauthorizedPage = () => {
                 
                 <div className="flex justify-center gap-3">
                     <Button 
-                        variant="secondary" 
+                        variant="outline" 
+                        className="border-blue-500 text-blue-600 hover:bg-blue-50 hover:text-blue-700" 
                         onClick={() => navigate(-1)}
                         icon={ArrowLeft}
                     >

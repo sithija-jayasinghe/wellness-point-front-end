@@ -175,7 +175,8 @@ const ClinicFormPage = () => {
         <div className="max-w-2xl mx-auto space-y-6">
             <div className="flex items-center gap-4 mb-6">
                 <Button
-                    variant="ghost"
+                    variant="outline"
+                    className="border-blue-500 text-blue-600 hover:bg-blue-50 hover:text-blue-700"
                     icon={ArrowLeft}
                     onClick={() => navigate('/clinics')}
                 >

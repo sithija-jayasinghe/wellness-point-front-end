@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search, Edit, Trash2, User } from 'lucide-react';
-import { getAllDoctors, deleteDoctor } from '../../api/doctors.api';
+import { Plus, Search, Edit, RefreshCw, User } from 'lucide-react';
+import { getAllDoctors, updateDoctor } from '../../api/doctors.api';
 import { getAllClinics } from '../../api/clinics.api';
 import PageHeader from '../../components/PageHeader';
 import Button from '../../components/Button';
@@ -13,7 +13,6 @@ import {
     TableRow,
     TableHead,
 } from '../../components/Table';
-import ConfirmDialog from '../../components/ConfirmDialog';
 import { useToast } from '../../components/useToast';
 import Spinner from '../../components/Spinner';
 import EmptyState from '../../components/EmptyState';
@@ -29,8 +28,7 @@ const DoctorsListPage = () => {
     const [error, setError] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
 
-    const [deleteId, setDeleteId] = useState(null);
-    const [deleting, setDeleting] = useState(false);
+    const [updatingId, setUpdatingId] = useState(null);
 
     useEffect(() => {
         fetchData();
@@ -54,28 +52,44 @@ const DoctorsListPage = () => {
         }
     };
 
-    const handleDelete = async () => {
-        if (!deleteId) return;
-
+    const handleStatusChange = async (doctor) => {
         try {
-            setDeleting(true);
-            await deleteDoctor(deleteId);
-            setDoctors(doctors.filter(d => d.id !== deleteId));
+            setUpdatingId(doctor.id);
+            const newStatus = doctor.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
+            
+            // Prepare payload similar to form submission
+            // Ensure clinics are mapped correctly to { id: ... } objects
+            const clinicsPayload = doctor.clinics ? doctor.clinics.map(c => ({ id: c.id })) : [];
+            
+            const payload = {
+                ...doctor,
+                status: newStatus,
+                consultationFee: Number(doctor.consultationFee),
+                clinics: clinicsPayload,
+                // Ensure name is preserved properly (though it should be in ...doctor)
+            };
+
+            await updateDoctor(doctor.id, payload);
+            
+            // Update local state
+            setDoctors(doctors.map(d => 
+                d.id === doctor.id ? { ...d, status: newStatus } : d
+            ));
+
             toast({
                 title: 'Success',
-                description: 'Doctor deleted successfully',
+                description: `Doctor status updated to ${newStatus}`,
                 variant: 'success'
             });
-            setDeleteId(null);
         } catch (err) {
-            console.error('Failed to delete doctor', err);
+            console.error('Failed to update doctor status', err);
             toast({
                 title: 'Error',
-                description: 'Failed to delete doctor. Please try again.',
+                description: 'Failed to update doctor status',
                 variant: 'destructive'
             });
         } finally {
-            setDeleting(false);
+            setUpdatingId(null);
         }
     };
 
@@ -186,7 +200,8 @@ const DoctorsListPage = () => {
                                             ${Number(doctor.consultationFee).toFixed(2)}
                                         </td>
                                         <td className="px-6 py-4">
-                                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${doctor.status === 'Active'
+                                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                                doctor.status === 'ACTIVE' || doctor.status === 'Active'
                                                 ? 'bg-green-100 text-green-800'
                                                 : 'bg-gray-100 text-gray-800'
                                                 }`}>
@@ -200,16 +215,29 @@ const DoctorsListPage = () => {
                                                     size="sm"
                                                     onClick={() => navigate(`/doctors/${doctor.id}/edit`)}
                                                     className="h-8 w-8 p-0 text-gray-500 hover:text-blue-600"
+                                                    title="Edit Doctor"
                                                 >
                                                     <Edit className="h-4 w-4" />
                                                 </Button>
                                                 <Button
                                                     variant="ghost"
                                                     size="sm"
-                                                    onClick={() => setDeleteId(doctor.id)}
-                                                    className="h-8 w-8 p-0 text-gray-500 hover:text-red-600"
+                                                    onClick={() => handleStatusChange(doctor)}
+                                                    disabled={updatingId === doctor.id}
+                                                    className={`h-8 w-8 p-0 ${
+                                                        updatingId === doctor.id ? 'opacity-50 cursor-not-allowed' : ''
+                                                    } ${
+                                                        doctor.status === 'ACTIVE' || doctor.status === 'Active'
+                                                        ? 'text-green-600 hover:text-green-700' 
+                                                        : 'text-gray-400 hover:text-gray-600'
+                                                    }`}
+                                                    title={doctor.status === 'ACTIVE' || doctor.status === 'Active' ? 'Deactivate Doctor' : 'Activate Doctor'}
                                                 >
-                                                    <Trash2 className="h-4 w-4" />
+                                                    {updatingId === doctor.id ? (
+                                                        <Spinner size="sm" />
+                                                    ) : (
+                                                        <RefreshCw className="h-4 w-4" />
+                                                    )}
                                                 </Button>
                                             </div>
                                         </td>
@@ -220,16 +248,6 @@ const DoctorsListPage = () => {
                     </Table>
                 )}
             </div>
-
-            <ConfirmDialog
-                open={!!deleteId}
-                onCancel={() => setDeleteId(null)}
-                onConfirm={handleDelete}
-                title="Delete Doctor"
-                message="Are you sure you want to delete this doctor? This action cannot be undone."
-                confirmText={deleting ? "Deleting..." : "Delete"}
-                variant="danger"
-            />
         </div>
     );
 };

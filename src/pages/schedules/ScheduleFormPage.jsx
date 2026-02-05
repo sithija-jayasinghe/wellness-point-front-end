@@ -44,7 +44,10 @@ const ScheduleFormPage = () => {
                 isEditMode ? getAllSchedules() : Promise.resolve([])
             ]);
             
-            setDoctors(doctorsData);
+            // Filter active doctors
+            const activeDoctors = (doctorsData || []).filter(d => d.status === 'ACTIVE' || d.status === 'Active');
+            
+            setDoctors(activeDoctors);
             setClinics(clinicsData);
 
             if (isEditMode) {
@@ -87,10 +90,10 @@ const ScheduleFormPage = () => {
                     navigate('/schedules');
                 }
             } else {
-                // Auto-select first doctor and clinic if they exist (Alternative to placeholder)
+                // Auto-select first doctor (from active ones) and clinic if they exist (Alternative to placeholder)
                 setFormData(prev => ({
                     ...prev,
-                    doctorId: doctorsData.length > 0 ? doctorsData[0].id : '',
+                    doctorId: activeDoctors.length > 0 ? activeDoctors[0].id : '',
                     clinicId: clinicsData.length > 0 ? clinicsData[0].id : ''
                 }));
             }
@@ -214,7 +217,12 @@ const ScheduleFormPage = () => {
     return (
         <div className="max-w-3xl mx-auto space-y-6">
             <div className="flex items-center gap-4 mb-6">
-                <Button variant="ghost" icon={ArrowLeft} onClick={() => navigate('/schedules')}>
+                <Button 
+                    variant="outline" 
+                    className="border-blue-500 text-blue-600 hover:bg-blue-50 hover:text-blue-700" 
+                    icon={ArrowLeft} 
+                    onClick={() => navigate('/schedules')}
+                >
                     Back
                 </Button>
                 <h1 className="text-2xl font-bold text-gray-900">

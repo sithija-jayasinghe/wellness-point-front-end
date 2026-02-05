@@ -178,7 +178,12 @@ const RefundFormPage = () => {
                 title={isEditMode ? 'Edit Refund' : 'Process Refund'} 
                 description={isEditMode ? 'Update refund details.' : 'Process a new refund for a payment.'}
                 actions={
-                    <Button variant="ghost" onClick={() => navigate('/refunds')} icon={ArrowLeft}>
+                    <Button 
+                        variant="outline" 
+                        className="border-blue-500 text-blue-600 hover:bg-blue-50 hover:text-blue-700" 
+                        onClick={() => navigate('/refunds')} 
+                        icon={ArrowLeft}
+                    >
                         Back to List
                     </Button>
                 }

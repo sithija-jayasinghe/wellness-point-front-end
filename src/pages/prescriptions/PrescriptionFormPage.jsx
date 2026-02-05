@@ -146,7 +146,12 @@ const PrescriptionFormPage = () => {
                 title={isEditMode ? 'Edit Prescription' : 'New Prescription'}
                 description={isEditMode ? 'Update prescription details.' : 'Create a new prescription.'}
                 actions={
-                    <Button variant="ghost" onClick={() => navigate('/prescriptions')} icon={ArrowLeft}>
+                    <Button 
+                        variant="outline" 
+                        className="border-blue-500 text-blue-600 hover:bg-blue-50 hover:text-blue-700"
+                        onClick={() => navigate('/prescriptions')} 
+                        icon={ArrowLeft}
+                    >
                         Back to List
                     </Button>
                 }

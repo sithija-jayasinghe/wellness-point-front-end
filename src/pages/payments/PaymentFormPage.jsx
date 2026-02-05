@@ -111,7 +111,12 @@ const PaymentFormPage = () => {
                 title={isEditMode ? 'Edit Payment' : 'New Payment'}
                 description={isEditMode ? 'Update payment record.' : 'Record a new payment.'}
                 actions={
-                    <Button variant="ghost" onClick={() => navigate('/payments')} icon={ArrowLeft}>
+                    <Button 
+                        variant="outline" 
+                        className="border-blue-500 text-blue-600 hover:bg-blue-50 hover:text-blue-700" 
+                        onClick={() => navigate('/payments')} 
+                        icon={ArrowLeft}
+                    >
                         Back to List
                     </Button>
                 }
