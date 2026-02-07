@@ -19,6 +19,48 @@ const AppointmentDetailsPage = () => {
     const [schedule, setSchedule] = useState(null);
     const [loading, setLoading] = useState(true);
 
+    // Helper to parse date data into Date object
+    const getAppointmentDateObj = (dateData) => {
+        if (!dateData) return null;
+        
+        let dateObj;
+        if (Array.isArray(dateData)) {
+            const [year, month, day, hour, minute, second = 0] = dateData;
+            // Note: Java month is 1-12, JS Date month is 0-11
+            dateObj = new Date(year, month - 1, day, hour, minute, second);
+        } else {
+            dateObj = new Date(dateData);
+        }
+
+        return isNaN(dateObj.getTime()) ? null : dateObj;
+    };
+
+    // Helper to format Java LocalDateTime array or string
+    const formatDateTime = (dateData) => {
+        const dateObj = getAppointmentDateObj(dateData);
+        if (!dateObj) return dateData ? 'Invalid Date' : 'N/A';
+        return dateObj.toLocaleString();
+    };
+
+    // Helper to calculate duration or return default
+    const getDurationText = () => {
+         if (schedule) {
+             // Try to calculate duration from schedule limits
+             let start, end;
+             
+             // Handle array format (likely from backend)
+             if (schedule.startDateTime) start = getAppointmentDateObj(schedule.startDateTime);
+             if (schedule.endDateTime) end = getAppointmentDateObj(schedule.endDateTime);
+             
+             if (start && end && schedule.maxPatients > 0) {
+                 const diffMinutes = (end - start) / (1000 * 60);
+                 const duration = Math.floor(diffMinutes / Math.max(1, parseInt(schedule.maxPatients)));
+                 return `${duration} minutes`;
+             }
+         }
+         return "15 minutes"; // Default to 15 mins instead of "Standard Consultation" text
+    };
+
     useEffect(() => {
         fetchData();
     }, [id]);
@@ -102,7 +144,7 @@ const AppointmentDetailsPage = () => {
                             <div>
                                 <p className="text-sm font-medium text-gray-500">Date & Time</p>
                                 <p className="text-gray-900 font-medium">
-                                    {appointment.appointmentTime ? new Date(appointment.appointmentTime).toLocaleString() : 'N/A'}
+                                    {formatDateTime(appointment.appointmentTime)}
                                 </p>
                             </div>
                         </div>
@@ -113,7 +155,7 @@ const AppointmentDetailsPage = () => {
                             </div>
                             <div>
                                 <p className="text-sm font-medium text-gray-500">Duration</p>
-                                <p className="text-gray-900">Standard Consultation</p>
+                                <p className="text-gray-900">{getDurationText()}</p>
                             </div>
                         </div>
                     </div>
