@@ -2,10 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Save } from 'lucide-react';
 import { createPatient, updatePatient, getAllPatients } from '../../api/patients.api';
+import { getAllClinics } from '../../api/clinics.api';
 import PageHeader from '../../components/PageHeader';
 import Button from '../../components/Button';
 import Input from '../../components/Input';
 import Select from '../../components/Select';
+import SearchableSelect from '../../components/SearchableSelect';
 import { useToast } from '../../components/useToast';
 import Spinner from '../../components/Spinner';
 
@@ -16,34 +18,55 @@ const PatientFormPage = () => {
     const isEditMode = !!id;
     const { toast } = useToast();
 
+    const [clinics, setClinics] = useState([]);
     const [formData, setFormData] = useState({
         name: '',
         nic: '',
         phone: '',
         dob: '',
         gender: 'MALE',
-        userId: '' // Assuming userId is optional or handled by backend if new
+        userId: '', // Assuming userId is optional or handled by backend if new
+        clinics: [] // Array of selected clinic IDs
     });
     const [loading, setLoading] = useState(false);
-    const [initialLoading, setInitialLoading] = useState(isEditMode);
+    const [initialLoading, setInitialLoading] = useState(true);
     const [errors, setErrors] = useState({});
 
     useEffect(() => {
-        if (isEditMode) {
-            fetchPatient();
-        } else {
-            // Reset form when switching to create mode
-             setFormData({
-                name: '',
-                nic: '',
-                phone: '',
-                dob: '',
-                gender: 'MALE',
-                userId: ''
-            });
-            setErrors({});
-            setInitialLoading(false);
-        }
+        const loadData = async () => {
+            try {
+                // Fetch clinics for dropdown
+                const clinicsData = await getAllClinics();
+                setClinics(clinicsData);
+                
+                if (isEditMode) {
+                    await fetchPatient();
+                } else {
+                    // Reset form when switching to create mode
+                    setFormData({
+                        name: '',
+                        nic: '',
+                        phone: '',
+                        dob: '',
+                        gender: 'MALE',
+                        userId: '',
+                        clinics: []
+                    });
+                    setErrors({});
+                }
+            } catch (err) {
+                console.error('Error loading data', err);
+                toast({
+                    title: 'Error',
+                    description: 'Failed to load data',
+                    variant: 'destructive'
+                });
+            } finally {
+                setInitialLoading(false);
+            }
+        };
+        
+        loadData();
     }, [isEditMode, id]);
 
     const fetchPatient = async () => {
@@ -73,7 +96,8 @@ const PatientFormPage = () => {
                     phone: patient.phone || '',
                     dob: formattedDob,
                     gender: patient.gender || 'MALE',
-                    userId: patient.userId || ''
+                    userId: patient.userId || '',
+                    clinics: patient.clinics ? patient.clinics.map(c => c.id) : []
                 });
             } else {
                 toast({
@@ -85,14 +109,8 @@ const PatientFormPage = () => {
             }
         } catch (err) {
             console.error('Failed to fetch patient details', err);
-            toast({
-                title: 'Error',
-                description: 'Failed to load patient details',
-                variant: 'destructive'
-            });
-            navigate('/patients');
-        } finally {
-            setInitialLoading(false);
+            // Error handling handled by outer catch
+            throw err; 
         }
     };
 
@@ -123,8 +141,17 @@ const PatientFormPage = () => {
 
         try {
             setLoading(true);
+            
+            // Convert Array of IDs to Array of Objects for Backend
+            const payload = {
+                ...formData,
+                clinics: formData.clinics && formData.clinics.length > 0
+                    ? formData.clinics.map(id => ({ id }))
+                    : []
+            };
+
             if (isEditMode) {
-                await updatePatient(id, formData);
+                await updatePatient(id, payload);
                 toast({
                     title: 'Success',
                     description: 'Patient updated successfully',
@@ -132,7 +159,7 @@ const PatientFormPage = () => {
                 });
                 navigate('/patients');
             } else {
-                await createPatient(formData);
+                await createPatient(payload);
                 toast({
                     title: 'Success',
                     description: 'Patient registered successfully',
@@ -145,7 +172,8 @@ const PatientFormPage = () => {
                     phone: '',
                     dob: '',
                     gender: 'MALE',
-                    userId: ''
+                    userId: '',
+                    clinics: []
                 });
                 setErrors({});
             }
@@ -262,6 +290,23 @@ const PatientFormPage = () => {
                                     <option value="OTHER">Other</option>
                                 </Select>
                             </div>
+                        </div>
+
+                         <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Assign Clinics
+                            </label>
+                            <SearchableSelect
+                                name="clinics"
+                                options={clinics.map(c => ({ value: c.id, label: c.name, status: c.status }))}
+                                value={formData.clinics}
+                                onChange={handleChange}
+                                placeholder="Select clinics..."
+                                multiple={true}
+                            />
+                            <p className="mt-1 text-xs text-gray-500">
+                                Select one or more clinics this patient belongs to.
+                            </p>
                         </div>
                     </div>
 

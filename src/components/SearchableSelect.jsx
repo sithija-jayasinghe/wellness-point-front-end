@@ -10,7 +10,8 @@ const SearchableSelect = ({
     placeholder = "Select option...", 
     className,
     disabled = false,
-    multiple = false
+    multiple = false,
+    direction = 'down'
 }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
@@ -103,7 +104,10 @@ const SearchableSelect = ({
             </div>
 
             {isOpen && (
-                <div className="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-md border border-gray-200 bg-white shadow-lg">
+                <div className={cn(
+                    "absolute z-50 w-full overflow-auto rounded-md border border-gray-200 bg-white shadow-lg max-h-60",
+                    direction === 'up' ? "bottom-full mb-1" : "mt-1"
+                )}>
                     <div className="sticky top-0 z-10 bg-white p-2 border-b border-gray-100">
                         <div className="relative">
                             <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
