@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Search, DollarSign, Trash2, Edit, RefreshCw } from 'lucide-react';
 import { getAllPayments, deletePayment } from '../../api/payments.api';
+import { getAllAppointments } from '../../api/appointments.api';
+import { getAllPatients } from '../../api/patients.api';
 import PageHeader from '../../components/PageHeader';
 import Button from '../../components/Button';
 import Input from '../../components/Input';
@@ -23,6 +25,8 @@ const PaymentsListPage = () => {
     const { toast } = useToast();
 
     const [payments, setPayments] = useState([]);
+    const [appointments, setAppointments] = useState([]);
+    const [patients, setPatients] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
@@ -37,11 +41,18 @@ const PaymentsListPage = () => {
     const fetchPayments = async () => {
         try {
             setLoading(true);
-            const data = await getAllPayments();
-            setPayments(data);
+            const [paymentsData, appointmentsData, patientsData] = await Promise.all([
+                getAllPayments(),
+                getAllAppointments().catch(() => []), 
+                getAllPatients().catch(() => [])
+            ]);
+            
+            setPayments(paymentsData);
+            setAppointments(appointmentsData);
+            setPatients(patientsData);
             setError(null);
         } catch (err) {
-            console.error('Failed to fetch payments', err);
+            console.error('Failed to check payments', err);
             setError('Failed to load payments. Please try again.');
         } finally {
             setLoading(false);
@@ -64,13 +75,26 @@ const PaymentsListPage = () => {
         }
     };
 
+    const getPatientName = (payment) => {
+        if (!payment || !payment.appointmentId) return 'Unknown Patient';
+        
+        const appointment = appointments.find(a => a.id === payment.appointmentId);
+        if (!appointment || !appointment.patientId) return 'Unknown Patient';
+        
+        const patient = patients.find(p => p.id === appointment.patientId);
+        return patient ? patient.name : 'Unknown Patient';
+    };
+
     const filteredPayments = payments.filter(p => {
         const search = searchTerm.toLowerCase();
+        const patientName = getPatientName(p).toLowerCase();
+        
         return (
             String(p.paymentId).includes(search) ||
             String(p.appointmentId).includes(search) ||
             String(p.paymentMethod).toLowerCase().includes(search) ||
-            String(p.status).toLowerCase().includes(search)
+            String(p.status).toLowerCase().includes(search) ||
+            patientName.includes(search)
         );
     });
 
@@ -130,10 +154,10 @@ const PaymentsListPage = () => {
                         <TableHeader>
                             <TableRow>
                                 <TableHead>ID</TableHead>
-                                <TableHead>Appointment ID</TableHead>
+                                <TableHead>Patient</TableHead>
+                                <TableHead>Appointment</TableHead>
                                 <TableHead>Amount</TableHead>
                                 <TableHead>Date</TableHead>
-                                <TableHead>Method</TableHead>
                                 <TableHead>Status</TableHead>
                                 <TableHead className="text-right">Actions</TableHead>
                             </TableRow>
@@ -142,12 +166,12 @@ const PaymentsListPage = () => {
                             {filteredPayments.map((p) => (
                                 <TableRow key={p.paymentId}>
                                     <td className="p-4 font-medium text-gray-900">#{p.paymentId}</td>
-                                    <td className="p-4 text-gray-500">{p.appointmentId}</td>
+                                    <td className="p-4 font-medium text-gray-900">{getPatientName(p)}</td>
+                                    <td className="p-4 text-gray-500">#{p.appointmentId}</td>
                                     <td className="p-4 text-gray-900 font-medium">
                                         LKR {p.amount?.toFixed(2)}
                                     </td>
                                     <td className="p-4 text-gray-500">{p.paymentDate}</td>
-                                    <td className="p-4 text-gray-500">{p.paymentMethod}</td>
                                     <td className="p-4">
                                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                                             (p.status && p.status.toUpperCase() === 'PAID') ? 'bg-green-100 text-green-800' :
