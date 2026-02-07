@@ -282,6 +282,22 @@ const AppointmentFormPage = () => {
         }
     };
 
+    const activeSchedules = schedules.filter(s => {
+        // If editing and this schedule is selected, keep it visible
+        if (isEditMode && String(s.id) === String(formData.scheduleId)) return true;
+        
+        let endDate;
+        if (Array.isArray(s.endDateTime)) {
+            const [year, month, day, hour, minute] = s.endDateTime;
+            endDate = new Date(year, month - 1, day, hour, minute);
+        } else {
+            endDate = new Date(s.endDateTime);
+        }
+        
+        // Return true if schedule ends in the future
+        return endDate > new Date();
+    });
+
     if (initialLoading) {
         return <div className="flex items-center justify-center min-h-[400px]"><Spinner size="lg" /></div>;
     }
@@ -348,7 +364,7 @@ const AppointmentFormPage = () => {
                                 className={errors.scheduleId ? 'border-red-300 focus:ring-red-500' : ''}
                             >
                                 <option value="">Select Schedule</option>
-                                {schedules.map(s => {
+                                {activeSchedules.map(s => {
                                     const doctor = doctors.find(d => d.id === s.doctorId);
                                     const doctorName = doctor ? doctor.name : `Doctor ID: ${s.doctorId || 'N/A'}`;
                                     
@@ -386,7 +402,7 @@ const AppointmentFormPage = () => {
                                     );
                                 })}
                             </Select>
-                             {schedules.length === 0 && <p className="text-xs text-gray-400 mt-1">No schedules found. Please create a schedule first.</p>}
+                             {activeSchedules.length === 0 && <p className="text-xs text-gray-400 mt-1">No active schedules found.</p>}
                             {errors.scheduleId && <p className="mt-1 text-sm text-red-500">{errors.scheduleId}</p>}
                         </div>
 
