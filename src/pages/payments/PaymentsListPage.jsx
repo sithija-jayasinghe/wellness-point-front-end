@@ -85,6 +85,22 @@ const PaymentsListPage = () => {
         return patient ? patient.name : 'Unknown Patient';
     };
 
+    const formatPaymentDate = (dateData) => {
+        if (!dateData) return 'N/A';
+        
+        let dateObj;
+        if (Array.isArray(dateData)) {
+            const [year, month, day, hour, minute, second = 0] = dateData;
+            dateObj = new Date(year, month - 1, day, hour, minute, second);
+        } else {
+            dateObj = new Date(dateData);
+        }
+        
+        if (isNaN(dateObj.getTime())) return 'Invalid Date';
+        
+        return dateObj.toLocaleDateString() + ' ' + dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    };
+
     const filteredPayments = payments.filter(p => {
         const search = searchTerm.toLowerCase();
         const patientName = getPatientName(p).toLowerCase();
@@ -171,7 +187,7 @@ const PaymentsListPage = () => {
                                     <td className="p-4 text-gray-900 font-medium">
                                         LKR {p.amount?.toFixed(2)}
                                     </td>
-                                    <td className="p-4 text-gray-500">{p.paymentDate}</td>
+                                    <td className="p-4 text-gray-500">{formatPaymentDate(p.paymentDate)}</td>
                                     <td className="p-4">
                                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                                             (p.status && p.status.toUpperCase() === 'PAID') ? 'bg-green-100 text-green-800' :
