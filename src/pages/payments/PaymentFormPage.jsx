@@ -143,7 +143,7 @@ const PaymentFormPage = () => {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Amount (Rs) <span className="text-red-500">*</span>
+                                    Amount (LKR) <span className="text-red-500">*</span>
                                 </label>
                                 <Input
                                     type="number"

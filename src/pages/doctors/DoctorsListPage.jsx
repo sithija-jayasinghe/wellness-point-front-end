@@ -197,7 +197,7 @@ const DoctorsListPage = () => {
                                             {doctor.specialization}
                                         </td>
                                         <td className="px-6 py-4 text-gray-600">
-                                            ${Number(doctor.consultationFee).toFixed(2)}
+                                            LKR {Number(doctor.consultationFee).toFixed(2)}
                                         </td>
                                         <td className="px-6 py-4">
                                             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${

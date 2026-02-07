@@ -209,7 +209,7 @@ const RefundFormPage = () => {
                                     <option value="">Select Payment</option>
                                     {payments.map(pay => (
                                         <option key={pay.paymentId} value={pay.paymentId}>
-                                            #{pay.paymentId} - Rs.{pay.amount} ({pay.date ? new Date(pay.date).toLocaleDateString() : 'No Date'})
+                                            #{pay.paymentId} - LKR {pay.amount} ({pay.date ? new Date(pay.date).toLocaleDateString() : 'No Date'})
                                         </option>
                                     ))}
                                 </Select>
@@ -220,7 +220,7 @@ const RefundFormPage = () => {
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Refund Amount (Rs.) <span className="text-red-500">*</span>
+                                        Refund Amount (LKR) <span className="text-red-500">*</span>
                                     </label>
                                     <Input
                                         type="number"
