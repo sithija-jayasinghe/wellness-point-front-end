@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Search, RotateCcw, Edit, Trash2 } from 'lucide-react';
 import { getAllRefunds, deleteRefund } from '../../api/refunds.api';
+import { getAllAppointments } from '../../api/appointments.api';
+import { getAllPatients } from '../../api/patients.api';
 import PageHeader from '../../components/PageHeader';
 import Button from '../../components/Button';
 import Input from '../../components/Input';
@@ -23,6 +25,8 @@ const RefundsListPage = () => {
     const { toast } = useToast();
     
     const [refunds, setRefunds] = useState([]);
+    const [appointments, setAppointments] = useState([]);
+    const [patients, setPatients] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
@@ -37,8 +41,14 @@ const RefundsListPage = () => {
     const fetchRefunds = async () => {
         try {
             setLoading(true);
-            const data = await getAllRefunds();
-            setRefunds(data);
+            const [refundsData, appointmentsData, patientsData] = await Promise.all([
+                 getAllRefunds(),
+                 getAllAppointments().catch(() => []), 
+                 getAllPatients().catch(() => [])
+            ]);
+            setRefunds(refundsData);
+            setAppointments(appointmentsData);
+            setPatients(patientsData);
             setError(null);
         } catch (err) {
             console.error('Failed to fetch refunds', err);
@@ -73,14 +83,26 @@ const RefundsListPage = () => {
         }
     };
 
+    const getPatientName = (refund) => {
+        if (!refund || !refund.payment || !refund.payment.appointmentId) return 'Unknown Patient';
+        
+        const appointment = appointments.find(a => a.id === refund.payment.appointmentId);
+        if (!appointment || !appointment.patientId) return 'Unknown Patient';
+        
+        const patient = patients.find(p => p.id === appointment.patientId);
+        return patient ? patient.name : 'Unknown Patient';
+    };
+
     const filteredRefunds = refunds.filter(item => {
         const search = searchTerm.toLowerCase();
         // Since DTO has "private Payment payment;", it will always be nested
         const pId = item.payment ? item.payment.paymentId : '';
+        const patientName = getPatientName(item).toLowerCase();
         return (
             String(item.refundId).includes(search) ||
             String(item.reason).toLowerCase().includes(search) ||
-            String(pId).includes(search)
+            String(pId).includes(search) ||
+            patientName.includes(search)
         );
     });
 
@@ -149,7 +171,8 @@ const RefundsListPage = () => {
                         <TableHeader>
                             <TableRow>
                                 <TableHead>ID</TableHead>
-                                <TableHead>Payment ID</TableHead>
+                                <TableHead>Patient</TableHead>
+                                <TableHead>Payment</TableHead>
                                 <TableHead>Date</TableHead>
                                 <TableHead>Amount</TableHead>
                                 <TableHead>Reason</TableHead>
@@ -160,6 +183,7 @@ const RefundsListPage = () => {
                             {filteredRefunds.map((item) => (
                                 <TableRow key={item.refundId}>
                                     <td className="p-4 font-medium text-gray-900">#{item.refundId}</td>
+                                    <td className="p-4 font-medium text-gray-900">{getPatientName(item)}</td>
                                     <td className="p-4 text-gray-500">
                                         {item.payment ? `#${item.payment.paymentId}` : 'N/A'}
                                     </td>
