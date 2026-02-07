@@ -164,7 +164,7 @@ const RefundsListPage = () => {
                                         {item.payment ? `#${item.payment.paymentId}` : 'N/A'}
                                     </td>
                                     <td className="p-4 text-gray-500">{formatDate(item.refundDate)}</td>
-                                    <td className="p-4 text-gray-900 font-medium">Rs. {Number(item.amount).toFixed(2)}</td>
+                                    <td className="p-4 text-gray-900 font-medium">LKR {Number(item.amount).toFixed(2)}</td>
                                     <td className="p-4 text-gray-500 max-w-xs truncate">{item.reason || '-'}</td>
                                     <td className="p-4 text-right">
                                         <div className="flex items-center justify-end gap-2">

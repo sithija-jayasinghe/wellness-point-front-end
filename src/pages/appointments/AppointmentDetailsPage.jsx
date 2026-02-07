@@ -233,7 +233,7 @@ const AppointmentDetailsPage = () => {
                              </div>
                              <div className="p-4 bg-gray-50 rounded-lg">
                                 <p className="text-sm text-gray-500 mb-1">Fee</p>
-                                <p className="font-medium text-gray-900">{doctor && doctor.consultationFee ? `$${doctor.consultationFee}` : (schedule.fee ? `$${schedule.fee}` : 'N/A')}</p>
+                                <p className="font-medium text-gray-900">{doctor && doctor.consultationFee ? `LKR ${doctor.consultationFee}` : (schedule.fee ? `LKR ${schedule.fee}` : 'N/A')}</p>
                              </div>
                         </div>
                     ) : (
