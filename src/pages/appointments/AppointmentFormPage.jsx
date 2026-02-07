@@ -4,6 +4,7 @@ import { ArrowLeft, Save, Plus } from 'lucide-react';
 import { bookAppointment, updateAppointment, getAppointmentById } from '../../api/appointments.api';
 import { getAllPatients, createPatient } from '../../api/patients.api';
 import { getAllDoctors } from '../../api/doctors.api';
+import { getAllClinics } from '../../api/clinics.api';
 import { getUser } from '../../auth/authStorage'; 
 import { getAllSchedules } from '../../api/schedules.api'; 
 import PageHeader from '../../components/PageHeader';
@@ -35,7 +36,8 @@ const AppointmentFormPage = () => {
         nic: '',
         phone: '',
         dob: '',
-        gender: 'MALE'
+        gender: 'MALE',
+        clinics: [] // Add clinics for new patient
     });
     const [newPatientErrors, setNewPatientErrors] = useState({});
     const [creatingPatient, setCreatingPatient] = useState(false);
@@ -43,6 +45,7 @@ const AppointmentFormPage = () => {
     const [patients, setPatients] = useState([]);
     const [schedules, setSchedules] = useState([]);
     const [doctors, setDoctors] = useState([]);
+    const [clinics, setClinics] = useState([]); // Store fetched clinics
 
     const [loading, setLoading] = useState(false);
     const [initialLoading, setInitialLoading] = useState(true);
@@ -67,14 +70,16 @@ const AppointmentFormPage = () => {
 
     const loadDropdownData = async () => {
         try {
-            const [patientsData, schedulesData, doctorsData] = await Promise.all([
+            const [patientsData, schedulesData, doctorsData, clinicsData] = await Promise.all([
                 getAllPatients(),
                 getAllSchedules().catch(() => []), 
-                getAllDoctors().catch(() => [])
+                getAllDoctors().catch(() => []),
+                getAllClinics().catch(() => []) 
             ]);
             setPatients(patientsData || []);
             setSchedules(schedulesData || []);
             setDoctors(doctorsData || []);
+            setClinics(clinicsData || []);
         } catch (error) {
             console.error("Failed to load dropdown data", error);
         } finally {
@@ -155,7 +160,17 @@ const AppointmentFormPage = () => {
 
         try {
             setCreatingPatient(true);
-            const created = await createPatient(newPatientData);
+            
+            // Format data for backend
+            const payload = {
+                ...newPatientData,
+                // Ensure clinics is mapped to object array required by backend
+                clinics: newPatientData.clinics && newPatientData.clinics.length > 0
+                    ? newPatientData.clinics.map(id => ({ id }))
+                    : []
+            };
+
+            const created = await createPatient(payload);
             
             // Refresh patient list
             const patientsList = await getAllPatients();
@@ -167,7 +182,7 @@ const AppointmentFormPage = () => {
             toast({ title: 'Success', description: 'Patient created successfully', variant: 'success' });
             
             // Reset and close
-            setNewPatientData({ name: '', nic: '', phone: '', dob: '', gender: 'MALE' });
+            setNewPatientData({ name: '', nic: '', phone: '', dob: '', gender: 'MALE', clinics: [] });
             setIsPatientModalOpen(false);
         } catch (err) {
             console.error('Failed to create patient', err);
@@ -436,8 +451,8 @@ const AppointmentFormPage = () => {
             {/* New Patient Modal */}
             {isPatientModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-                    <div className="w-full max-w-lg bg-white rounded-xl shadow-xl overflow-hidden ring-1 ring-black ring-opacity-5">
-                        <div className="p-6 border-b border-gray-100">
+                    <div className="w-full max-w-lg bg-white rounded-xl shadow-xl overflow-visible ring-1 ring-black ring-opacity-5">
+                        <div className="p-6 border-b border-gray-100 rounded-t-xl">
                             <h3 className="text-lg font-semibold text-gray-900">Add New Patient</h3>
                         </div>
                         <div className="p-6 space-y-4">
@@ -513,8 +528,29 @@ const AppointmentFormPage = () => {
                                     </Select>
                                 </div>
                             </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Assign Clinics
+                                </label>
+                                <SearchableSelect
+                                    name="clinics"
+                                    value={newPatientData.clinics || []}
+                                    onChange={handleNewPatientChange}
+                                    options={clinics.map(c => ({
+                                        value: c.id,
+                                        label: c.name
+                                    }))}
+                                    placeholder="Select clinics..."
+                                    multiple
+                                    direction="up"
+                                />
+                                <p className="mt-1 text-xs text-gray-500">
+                                    Select the clinics this patient is associated with.
+                                </p>
+                            </div>
                         </div>
-                        <div className="bg-gray-50 px-6 py-4 flex flex-row-reverse gap-2">
+                        <div className="bg-gray-50 px-6 py-4 flex flex-row-reverse gap-2 rounded-b-xl">
                             <Button 
                                 onClick={handleSubmitNewPatient} 
                                 disabled={creatingPatient}

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Edit, Trash2, User, FileText } from 'lucide-react';
+import { Search, Edit, Trash2, User, FileText, Filter } from 'lucide-react';
 import { getAllPatients, deletePatient } from '../../api/patients.api';
+import { getAllClinics } from '../../api/clinics.api';
 import PageHeader from '../../components/PageHeader';
 import Button from '../../components/Button';
 import Input from '../../components/Input';
@@ -23,26 +24,32 @@ const PatientsListPage = () => {
     const { toast } = useToast();
     
     const [patients, setPatients] = useState([]);
+    const [clinics, setClinics] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
+    const [selectedClinicId, setSelectedClinicId] = useState('');
     
     const [deleteId, setDeleteId] = useState(null);
     const [deleting, setDeleting] = useState(false);
 
     useEffect(() => {
-        fetchPatients();
+        fetchData();
     }, []);
 
-    const fetchPatients = async () => {
+    const fetchData = async () => {
         try {
             setLoading(true);
-            const data = await getAllPatients();
-            setPatients(data);
+            const [patientsData, clinicsData] = await Promise.all([
+                getAllPatients(),
+                getAllClinics()
+            ]);
+            setPatients(patientsData);
+            setClinics(clinicsData);
             setError(null);
         } catch (err) {
-            console.error('Failed to fetch patients', err);
-            setError('Failed to load patients. Please try again.');
+            console.error('Failed to fetch data', err);
+            setError('Failed to load data. Please try again.');
         } finally {
             setLoading(false);
         }
@@ -73,11 +80,17 @@ const PatientsListPage = () => {
         }
     };
 
-    const filteredPatients = patients.filter(patient => 
-        patient.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        patient.nic?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        patient.phone?.includes(searchTerm)
-    );
+    const filteredPatients = patients.filter(patient => {
+        const matchesSearch = 
+            patient.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            patient.nic?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            patient.phone?.includes(searchTerm);
+            
+        const matchesClinic = !selectedClinicId || 
+            (patient.clinics && patient.clinics.some(c => c.id === parseInt(selectedClinicId)));
+            
+        return matchesSearch && matchesClinic;
+    });
 
     if (loading) return <Spinner fullScreen />;
     
@@ -86,7 +99,7 @@ const PatientsListPage = () => {
             <ErrorState 
                 title="Something went wrong" 
                 message={error} 
-                onRetry={fetchPatients} 
+                onRetry={fetchData} 
             />
         </div>
     );
@@ -100,8 +113,8 @@ const PatientsListPage = () => {
             />
 
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                <div className="p-4 border-b border-gray-100 bg-gray-50/50">
-                    <div className="relative max-w-sm">
+                <div className="p-4 border-b border-gray-100 bg-gray-50/50 flex flex-col md:flex-row gap-4 items-center justify-between">
+                    <div className="relative max-w-sm w-full">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                         <Input 
                             placeholder="Search by name, NIC, or phone..." 
@@ -110,13 +123,29 @@ const PatientsListPage = () => {
                             className="pl-9"
                         />
                     </div>
+                    
+                    <div className="flex items-center gap-2 w-full md:w-auto">
+                        <Filter className="h-4 w-4 text-gray-500" />
+                        <select
+                            className="form-select pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
+                            value={selectedClinicId}
+                            onChange={(e) => setSelectedClinicId(e.target.value)}
+                        >
+                            <option value="">All Clinics</option>
+                            {clinics.map(clinic => (
+                                <option key={clinic.id} value={clinic.id}>
+                                    {clinic.name}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
                 </div>
 
                 {filteredPatients.length === 0 ? (
                     <div className="p-12">
                         <EmptyState 
-                            title={searchTerm ? "No patients found" : "No patients yet"}
-                            description={searchTerm ? "Try adjusting your search terms" : "Get started by registering a new patient"}
+                            title={searchTerm || selectedClinicId ? "No patients found" : "No patients yet"}
+                            description={searchTerm || selectedClinicId ? "Try adjusting your search terms or filters" : "Get started by registering a new patient"}
                             icon={User}
                             action={null}
                         />
@@ -129,6 +158,7 @@ const PatientsListPage = () => {
                                 <TableHead>NIC</TableHead>
                                 <TableHead>Phone</TableHead>
                                 <TableHead>Gender</TableHead>
+                                <TableHead>Clinic(s)</TableHead>
                                 <TableHead className="text-right">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
@@ -139,6 +169,19 @@ const PatientsListPage = () => {
                                     <td className="p-4 text-gray-500">{patient.nic}</td>
                                     <td className="p-4 text-gray-500">{patient.phone}</td>
                                     <td className="p-4 text-gray-500">{patient.gender}</td>
+                                    <td className="p-4 text-gray-500">
+                                        {patient.clinics && patient.clinics.length > 0 ? (
+                                            <div className="flex flex-wrap gap-1">
+                                                {patient.clinics.map(clinic => (
+                                                    <span key={clinic.id} className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded">
+                                                        {clinic.name}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <span className="text-gray-400 italic">None</span>
+                                        )}
+                                    </td>
                                     <td className="p-4 text-right">
                                         <div className="flex items-center justify-end gap-2">
                                             <Button 
