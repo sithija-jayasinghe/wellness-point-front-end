@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Save } from 'lucide-react';
+import DatePicker from 'react-datepicker';
+import "react-datepicker/dist/react-datepicker.css";
 import { createSchedule, updateSchedule, getAllSchedules } from '../../api/schedules.api';
 import { getAllDoctors } from '../../api/doctors.api';
 import { getAllClinics } from '../../api/clinics.api';
@@ -21,8 +23,8 @@ const ScheduleFormPage = () => {
     const [formData, setFormData] = useState({
         doctorId: '',
         clinicId: '',
-        startDateTime: '',
-        endDateTime: '',
+        startDateTime: null,
+        endDateTime: null,
         maxPatients: ''
     });
     const [doctors, setDoctors] = useState([]);
@@ -59,19 +61,12 @@ const ScheduleFormPage = () => {
                 
                 if (schedule) {
                     const parseDate = (d) => {
-                        if (!d) return '';
-                        let dateObj;
+                        if (!d) return null;
                         if (Array.isArray(d)) {
                             const [year, month, day, hour, minute, second = 0] = d;
-                            dateObj = new Date(year, month - 1, day, hour, minute, second);
-                        } else {
-                            dateObj = new Date(d);
-                        }
-                        
-                        // Handle timezone offset to ensures it shows correct local time in input
-                        // datetime-local expects YYYY-MM-DDThh:mm
-                        const pad = (num) => String(num).padStart(2, '0');
-                        return `${dateObj.getFullYear()}-${pad(dateObj.getMonth() + 1)}-${pad(dateObj.getDate())}T${pad(dateObj.getHours())}:${pad(dateObj.getMinutes())}`;
+                            return new Date(year, month - 1, day, hour, minute, second);
+                        } 
+                        return new Date(d);
                     }
 
                     setFormData({
@@ -118,6 +113,13 @@ const ScheduleFormPage = () => {
         }
     };
 
+    const handleDateChange = (name, date) => {
+        setFormData(prev => ({ ...prev, [name]: date }));
+        if (errors[name]) {
+            setErrors(prev => ({ ...prev, [name]: null }));
+        }
+    };
+
     const validate = () => {
         const newErrors = {};
         if (!formData.doctorId) newErrors.doctorId = 'Doctor is required';
@@ -128,7 +130,7 @@ const ScheduleFormPage = () => {
         else if (parseInt(formData.maxPatients) <= 0) newErrors.maxPatients = 'Max patients must be greater than 0';
         
         if (formData.startDateTime && formData.endDateTime) {
-            if (new Date(formData.startDateTime) >= new Date(formData.endDateTime)) {
+            if (formData.startDateTime >= formData.endDateTime) {
                 newErrors.endDateTime = 'End time must be after start time';
             }
         }
@@ -145,11 +147,11 @@ const ScheduleFormPage = () => {
         try {
             setLoading(true);
             
-            // Format datetime for LocalDateTime (Java) - Send as "YYYY-MM-DDTHH:mm:ss"
-            // We append ':00' to the datetime-local value (which is YYYY-MM-DDTHH:mm)
-            const formatForLocalDateTime = (dateStr) => {
-                if (!dateStr) return null;
-                return dateStr.length === 16 ? `${dateStr}:00` : dateStr;
+            // Format datetime for LocalDateTime (Java) - Send as "YYYY-MM-DDTHH:mm:00"
+            const formatForLocalDateTime = (date) => {
+                if (!date) return null;
+                const pad = (n) => String(n).padStart(2, '0');
+                return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:00`;
             };
 
             const dataToSubmit = {
@@ -274,14 +276,19 @@ const ScheduleFormPage = () => {
                             <label className="block text-sm font-medium text-gray-700 mb-1">
                                 Start Date & Time <span className="text-red-500">*</span>
                             </label>
-                            <Input
-                                type="datetime-local"
-                                name="startDateTime"
-                                value={formData.startDateTime}
-                                onChange={handleChange}
-                                className={errors.startDateTime ? 'border-red-300 focus:ring-red-500' : ''}
-                                required
-                            />
+                            <div className="w-full">
+                                <DatePicker
+                                    selected={formData.startDateTime}
+                                    onChange={(date) => handleDateChange('startDateTime', date)}
+                                    showTimeSelect
+                                    timeFormat="HH:mm"
+                                    timeIntervals={15}
+                                    dateFormat="yyyy-MM-dd HH:mm"
+                                    className={`flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent ${errors.startDateTime ? 'border-red-300 focus:ring-red-500' : ''}`}
+                                    placeholderText="Select start date & time"
+                                    wrapperClassName="w-full"
+                                />
+                            </div>
                             {errors.startDateTime && <p className="mt-1 text-sm text-red-500">{errors.startDateTime}</p>}
                         </div>
 
@@ -289,14 +296,19 @@ const ScheduleFormPage = () => {
                             <label className="block text-sm font-medium text-gray-700 mb-1">
                                 End Date & Time <span className="text-red-500">*</span>
                             </label>
-                             <Input
-                                type="datetime-local"
-                                name="endDateTime"
-                                value={formData.endDateTime}
-                                onChange={handleChange}
-                                className={errors.endDateTime ? 'border-red-300 focus:ring-red-500' : ''}
-                                required
-                            />
+                            <div className="w-full">
+                                <DatePicker
+                                    selected={formData.endDateTime}
+                                    onChange={(date) => handleDateChange('endDateTime', date)}
+                                    showTimeSelect
+                                    timeFormat="HH:mm"
+                                    timeIntervals={15}
+                                    dateFormat="yyyy-MM-dd HH:mm"
+                                    className={`flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent ${errors.endDateTime ? 'border-red-300 focus:ring-red-500' : ''}`}
+                                    placeholderText="Select end date & time"
+                                    wrapperClassName="w-full"
+                                />
+                            </div>
                             {errors.endDateTime && <p className="mt-1 text-sm text-red-500">{errors.endDateTime}</p>}
                         </div>
 

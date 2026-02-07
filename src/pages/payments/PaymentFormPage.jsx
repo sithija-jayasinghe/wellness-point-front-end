@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Save } from 'lucide-react';
+import DatePicker from 'react-datepicker';
+import "react-datepicker/dist/react-datepicker.css";
 import { addPayment, updatePayment, getPaymentById } from '../../api/payments.api';
 import PageHeader from '../../components/PageHeader';
 import Button from '../../components/Button';
@@ -18,7 +20,7 @@ const PaymentFormPage = () => {
     const [formData, setFormData] = useState({
         appointmentId: '',
         amount: '',
-        paymentDate: new Date().toISOString().split('T')[0],
+        paymentDate: new Date(),
         paymentMethod: 'CASH',
         status: 'PENDING'
     });
@@ -39,10 +41,20 @@ const PaymentFormPage = () => {
         try {
             const data = await getPaymentById(id);
             if (data) {
+                let pDate = new Date();
+                if (data.paymentDate) {
+                     if (Array.isArray(data.paymentDate)) {
+                         const [y, m, d] = data.paymentDate;
+                         pDate = new Date(y, m - 1, d);
+                     } else {
+                         pDate = new Date(data.paymentDate);
+                     }
+                }
+
                 setFormData({
                     appointmentId: data.appointmentId || '',
                     amount: data.amount || '',
-                    paymentDate: data.paymentDate || '',
+                    paymentDate: pDate,
                     paymentMethod: data.paymentMethod || 'CASH',
                     status: data.status || 'PENDING'
                 });
@@ -59,6 +71,11 @@ const PaymentFormPage = () => {
     const handleChange = (e) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
+        if (errors[name]) setErrors(prev => ({ ...prev, [name]: null }));
+    };
+
+    const handleDateChange = (name, date) => {
+        setFormData(prev => ({ ...prev, [name]: date }));
         if (errors[name]) setErrors(prev => ({ ...prev, [name]: null }));
     };
 
@@ -80,10 +97,18 @@ const PaymentFormPage = () => {
 
         try {
             setLoading(true);
+            
+            const formatDate = (d) => {
+                 if (!d) return null;
+                 const pad = n => String(n).padStart(2, '0');
+                 return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+            };
+
             const payload = {
                 ...formData,
                 appointmentId: parseInt(formData.appointmentId),
-                amount: parseFloat(formData.amount)
+                amount: parseFloat(formData.amount),
+                paymentDate: formatDate(formData.paymentDate)
             };
 
             if (isEditMode) {
@@ -160,13 +185,16 @@ const PaymentFormPage = () => {
                                 <label className="block text-sm font-medium text-gray-700 mb-1">
                                     Payment Date <span className="text-red-500">*</span>
                                 </label>
-                                <Input
-                                    type="date"
-                                    name="paymentDate"
-                                    value={formData.paymentDate}
-                                    onChange={handleChange}
-                                    className={errors.paymentDate ? 'border-red-300' : ''}
-                                />
+                                <div className="w-full">
+                                    <DatePicker
+                                        selected={formData.paymentDate}
+                                        onChange={(date) => handleDateChange('paymentDate', date)}
+                                        dateFormat="yyyy-MM-dd"
+                                        className={`flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent ${errors.paymentDate ? 'border-red-300' : ''}`}
+                                        placeholderText="Select date"
+                                        wrapperClassName="w-full"
+                                    />
+                                </div>
                                 {errors.paymentDate && <p className="mt-1 text-sm text-red-500">{errors.paymentDate}</p>}
                             </div>
                         </div>
