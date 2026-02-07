@@ -90,7 +90,8 @@ const PaymentsListPage = () => {
         
         let dateObj;
         if (Array.isArray(dateData)) {
-            const [year, month, day, hour, minute, second = 0] = dateData;
+            // Provide defaults for time components in case they are missing (e.g. LocalDate)
+            const [year, month, day, hour = 0, minute = 0, second = 0] = dateData;
             dateObj = new Date(year, month - 1, day, hour, minute, second);
         } else {
             dateObj = new Date(dateData);
@@ -98,7 +99,7 @@ const PaymentsListPage = () => {
         
         if (isNaN(dateObj.getTime())) return 'Invalid Date';
         
-        return dateObj.toLocaleDateString() + ' ' + dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        return dateObj.toLocaleDateString();
     };
 
     const filteredPayments = payments.filter(p => {
