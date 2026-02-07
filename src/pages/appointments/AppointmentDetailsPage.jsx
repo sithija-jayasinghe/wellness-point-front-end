@@ -4,6 +4,7 @@ import { ArrowLeft, User, Calendar, Clock, Activity, CheckCircle, XCircle } from
 import { getAllAppointments } from '../../api/appointments.api'; 
 import { getAllPatients } from '../../api/patients.api';
 import { getAllSchedules } from '../../api/schedules.api';
+import { getAllDoctors } from '../../api/doctors.api';
 import PageHeader from '../../components/PageHeader';
 import Button from '../../components/Button';
 import Spinner from '../../components/Spinner';
@@ -17,6 +18,7 @@ const AppointmentDetailsPage = () => {
     const [appointment, setAppointment] = useState(null);
     const [patient, setPatient] = useState(null);
     const [schedule, setSchedule] = useState(null);
+    const [doctor, setDoctor] = useState(null);
     const [loading, setLoading] = useState(true);
 
     // Helper to parse date data into Date object
@@ -61,6 +63,27 @@ const AppointmentDetailsPage = () => {
          return "15 minutes"; // Default to 15 mins instead of "Standard Consultation" text
     };
 
+    const getAvailabilityText = () => {
+        if (!schedule) return '-';
+        // Check for startDateTime/endDateTime first (from Schedule entity structure)
+        const start = getAppointmentDateObj(schedule.startDateTime);
+        const end = getAppointmentDateObj(schedule.endDateTime);
+        
+        if (start && end) {
+            const dateStr = start.toLocaleDateString();
+            const startTime = start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const endTime = end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            return `${dateStr} • ${startTime} - ${endTime}`;
+        }
+        
+        // Fallback to old format if properties exist
+        if (schedule.dayOfWeek && schedule.startTime && schedule.endTime) {
+            return `${schedule.dayOfWeek} ${schedule.startTime} - ${schedule.endTime}`;
+        }
+        
+        return '-';
+    };
+
     useEffect(() => {
         fetchData();
     }, [id]);
@@ -69,10 +92,11 @@ const AppointmentDetailsPage = () => {
         try {
             setLoading(true);
             // Fetch All Data needed
-            const [appointments, patients, schedules] = await Promise.all([
+            const [appointments, patients, schedules, doctors] = await Promise.all([
                  getAllAppointments(),
                  getAllPatients(),
-                 getAllSchedules().catch(() => []) 
+                 getAllSchedules().catch(() => []), 
+                 getAllDoctors().catch(() => [])
             ]);
 
             const apt = appointments.find(a => a.id === parseInt(id) || a.id === id);
@@ -94,6 +118,11 @@ const AppointmentDetailsPage = () => {
             if (apt.scheduleId) {
                 const sch = schedules.find(s => s.id === apt.scheduleId);
                 setSchedule(sch);
+                
+                if (sch && sch.doctorId) {
+                    const doc = doctors.find(d => d.id === sch.doctorId);
+                    setDoctor(doc);
+                }
             }
 
         } catch (err) {
@@ -196,15 +225,15 @@ const AppointmentDetailsPage = () => {
                              </div>
                              <div className="p-4 bg-gray-50 rounded-lg">
                                 <p className="text-sm text-gray-500 mb-1">Doctor</p>
-                                <p className="font-medium text-gray-900">{schedule.doctorName || `Doctor ID: ${schedule.userId}`}</p>
+                                <p className="font-medium text-gray-900">{doctor ? doctor.name : (schedule.doctorName || `Doctor ID: ${schedule.doctorId || schedule.userId || 'N/A'}`)}</p>
                              </div>
                              <div className="p-4 bg-gray-50 rounded-lg">
                                 <p className="text-sm text-gray-500 mb-1">Availability</p>
-                                <p className="font-medium text-gray-900">{schedule.dayOfWeek} {schedule.startTime} - {schedule.endTime}</p>
+                                <p className="font-medium text-gray-900">{getAvailabilityText()}</p>
                              </div>
                              <div className="p-4 bg-gray-50 rounded-lg">
                                 <p className="text-sm text-gray-500 mb-1">Fee</p>
-                                <p className="font-medium text-gray-900">{schedule.fee ? `$${schedule.fee}` : 'Standard Rate'}</p>
+                                <p className="font-medium text-gray-900">{doctor && doctor.consultationFee ? `$${doctor.consultationFee}` : (schedule.fee ? `$${schedule.fee}` : 'N/A')}</p>
                              </div>
                         </div>
                     ) : (
