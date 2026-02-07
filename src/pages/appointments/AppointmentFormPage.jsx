@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Save, Plus } from 'lucide-react';
+import DatePicker from 'react-datepicker';
+import "react-datepicker/dist/react-datepicker.css";
 import { bookAppointment, updateAppointment, getAppointmentById } from '../../api/appointments.api';
 import { getAllPatients, createPatient } from '../../api/patients.api';
 import { getAllDoctors } from '../../api/doctors.api';
@@ -25,7 +27,7 @@ const AppointmentFormPage = () => {
     const [formData, setFormData] = useState({
         scheduleId: '',
         patientId: '',
-        appointmentTime: '',
+        appointmentTime: null,
         status: 'BOOKED' 
     });
     
@@ -62,7 +64,7 @@ const AppointmentFormPage = () => {
              setFormData({
                 scheduleId: '',
                 patientId: '',
-                appointmentTime: '',
+                appointmentTime: null,
                 status: 'BOOKED'
             });
         }
@@ -94,21 +96,12 @@ const AppointmentFormPage = () => {
             if (appointment) {
                 // Helper to safely parse date from Array or String
                 const parseDate = (d) => {
-                    if (!d) return '';
+                    if (!d) return null;
                     if (Array.isArray(d)) {
                          const [year, month, day, hour, minute, second = 0] = d;
-                         // Month is 0-indexed in JS Date
-                         // const date = new Date(year, month - 1, day, hour, minute, second);
-                         // Handle timezone offset manually or just string format for input
-                         const pad = (n) => String(n).padStart(2, '0');
-                         return `${year}-${pad(month)}-${pad(day)}T${pad(hour)}:${pad(minute)}`;
+                         return new Date(year, month - 1, day, hour, minute, second);
                     }
-                    // If it's a string, try standard parsing
-                     try {
-                        return new Date(d).toISOString().slice(0, 16);
-                     } catch (e) {
-                        return '';
-                     }
+                    return new Date(d);
                 };
 
                 setFormData({
@@ -131,6 +124,13 @@ const AppointmentFormPage = () => {
     const handleChange = (e) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
+        if (errors[name]) {
+            setErrors(prev => ({ ...prev, [name]: null }));
+        }
+    };
+
+    const handleDateChange = (name, date) => {
+        setFormData(prev => ({ ...prev, [name]: date }));
         if (errors[name]) {
             setErrors(prev => ({ ...prev, [name]: null }));
         }
@@ -204,7 +204,7 @@ const AppointmentFormPage = () => {
         
         // Backend Validation: @Future check
         if (formData.appointmentTime) {
-            const selectedDate = new Date(formData.appointmentTime);
+            const selectedDate = formData.appointmentTime;
             const now = new Date();
             if (selectedDate <= now) {
                 newErrors.appointmentTime = 'Appointment time must be in the future';
@@ -222,10 +222,18 @@ const AppointmentFormPage = () => {
         try {
             setLoading(true);
             
-            // Format Time properly: Appending ':00' to match standard LocalDatetime format if needed
-            let formattedTime = formData.appointmentTime;
-            if (formattedTime.length === 16) {
-                formattedTime = `${formattedTime}:00`;
+            // Format Time properly: Appending ':00' to match standard LocalDatetime format
+            const formatTime = (date) => {
+                 if (!date) return null;
+                 const pad = (n) => String(n).padStart(2, '0');
+                 return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:00`;
+            }
+
+            const formattedTime = formatTime(formData.appointmentTime);
+            if (!formattedTime) {
+                toast({ title: 'Error', description: 'Invalid date selected', variant: 'destructive' });
+                setLoading(false);
+                return;
             }
 
             const payload = {
@@ -248,7 +256,7 @@ const AppointmentFormPage = () => {
                 setFormData({
                     scheduleId: '',
                     patientId: '',
-                    appointmentTime: '',
+                    appointmentTime: null,
                     status: 'BOOKED'
                 });
                 setErrors({});
@@ -411,13 +419,19 @@ const AppointmentFormPage = () => {
                                 <label className="block text-sm font-medium text-gray-700 mb-1">
                                     Date & Time <span className="text-red-500">*</span>
                                 </label>
-                                <Input
-                                    type="datetime-local"
-                                    name="appointmentTime"
-                                    value={formData.appointmentTime}
-                                    onChange={handleChange}
-                                    className={errors.appointmentTime ? 'border-red-300 focus:ring-red-500' : ''}
-                                />
+                                <div className="w-full">
+                                    <DatePicker
+                                        selected={formData.appointmentTime}
+                                        onChange={(date) => handleDateChange('appointmentTime', date)}
+                                        showTimeSelect
+                                        timeFormat="HH:mm"
+                                        timeIntervals={15}
+                                        dateFormat="yyyy-MM-dd HH:mm"
+                                        className={`flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent ${errors.appointmentTime ? 'border-red-300 focus:ring-red-500' : ''}`}
+                                        placeholderText="Select date & time"
+                                        wrapperClassName="w-full"
+                                    />
+                                </div>
                                 {errors.appointmentTime && <p className="mt-1 text-sm text-red-500">{errors.appointmentTime}</p>}
                             </div>
 

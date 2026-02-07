@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Save } from 'lucide-react';
+import DatePicker from 'react-datepicker';
+import "react-datepicker/dist/react-datepicker.css";
 import { createRefund, updateRefund, getRefundById } from '../../api/refunds.api';
 import { getAllPayments, updatePayment } from '../../api/payments.api';
 import PageHeader from '../../components/PageHeader';
@@ -20,7 +22,7 @@ const RefundFormPage = () => {
     const [formData, setFormData] = useState({
         paymentId: '',
         amount: '',
-        refundDate: new Date().toISOString().split('T')[0], // Default to today
+        refundDate: new Date(), 
         reason: ''
     });
 
@@ -36,12 +38,11 @@ const RefundFormPage = () => {
     const loadData = async () => {
         try {
             setInitialLoading(true);
-            // Assuming getAllPayments is available
              let paymentsData = [];
              try {
                  paymentsData = await getAllPayments();
              } catch (e) {
-                 console.warn("Could not load payments, might be unimplemented", e);
+                 console.warn("Could not load payments", e);
              }
             
             setPayments(paymentsData);
@@ -49,20 +50,20 @@ const RefundFormPage = () => {
             if (isEditMode) {
                 const refund = await getRefundById(id);
                 if (refund) {
-                    // Handle date array or string
-                    let dateStr = '';
-                    if (Array.isArray(refund.refundDate)) {
-                         const [y, m, d] = refund.refundDate;
-                         const pad = n => String(n).padStart(2, '0');
-                         dateStr = `${y}-${pad(m)}-${pad(d)}`;
-                    } else {
-                         dateStr = refund.refundDate;
+                    let rDate = new Date();
+                    if (refund.refundDate) {
+                         if (Array.isArray(refund.refundDate)) {
+                             const [y, m, d] = refund.refundDate;
+                             rDate = new Date(y, m - 1, d);
+                         } else {
+                             rDate = new Date(refund.refundDate);
+                         }
                     }
 
                     setFormData({
                         paymentId: refund.paymentId || (refund.payment ? refund.payment.paymentId : ''),
                         amount: refund.amount || '',
-                        refundDate: dateStr,
+                        refundDate: rDate,
                         reason: refund.reason || ''
                     });
                 } else {
@@ -86,6 +87,13 @@ const RefundFormPage = () => {
         }
     };
 
+    const handleDateChange = (name, date) => {
+        setFormData(prev => ({ ...prev, [name]: date }));
+        if (errors[name]) {
+            setErrors(prev => ({ ...prev, [name]: null }));
+        }
+    };
+
     const validate = () => {
         const newErrors = {};
         if (!formData.paymentId) newErrors.paymentId = 'Payment is required';
@@ -104,15 +112,18 @@ const RefundFormPage = () => {
 
         try {
             setLoading(true);
+            const formatDate = (d) => {
+                 if (!d) return null;
+                 const pad = n => String(n).padStart(2, '0');
+                 return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+            };
+
             const payload = {
                 refundId: isEditMode ? parseInt(id) : null,
                 amount: parseFloat(formData.amount),
-                refundDate: formData.refundDate,
+                refundDate: formatDate(formData.refundDate),
                 reason: formData.reason,
                 payment: { paymentId: parseInt(formData.paymentId) },
-                // Backend requires full payment object sometimes if DTO has "private Payment payment;"
-                // but usually, ID inside object is enough for Entity mapping through jackson if configured right.
-                // However, let's ensure we are sending what matched the DTO structure.
             };
 
             if (isEditMode) {
@@ -237,13 +248,16 @@ const RefundFormPage = () => {
                                     <label className="block text-sm font-medium text-gray-700 mb-1">
                                         Refund Date <span className="text-red-500">*</span>
                                     </label>
-                                    <Input
-                                        type="date"
-                                        name="refundDate"
-                                        value={formData.refundDate}
-                                        onChange={handleChange}
-                                        className={errors.refundDate ? 'border-red-300 focus:ring-red-500' : ''}
-                                    />
+                                    <div className="w-full">
+                                        <DatePicker
+                                            selected={formData.refundDate}
+                                            onChange={(date) => handleDateChange('refundDate', date)}
+                                            dateFormat="yyyy-MM-dd"
+                                            className={`flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent ${errors.refundDate ? 'border-red-300 focus:ring-red-500' : ''}`}
+                                            placeholderText="Select date"
+                                            wrapperClassName="w-full"
+                                        />
+                                    </div>
                                     {errors.refundDate && <p className="mt-1 text-sm text-red-500">{errors.refundDate}</p>}
                                 </div>
                             </div>
