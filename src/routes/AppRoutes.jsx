@@ -3,7 +3,7 @@ import { Routes, Route, Outlet } from 'react-router-dom';
 import LoginPage from '../pages/LoginPage';
 import DashboardPage from '../pages/dashboard/DashboardPage';
 import DashboardLayout from '../layout/DashboardLayout';
-import RequireAuth from '../auth/RequireAuth';
+import ProtectedRoute from '../components/ProtectedRoute';
 
 import ClinicsListPage from '../pages/clinics/ClinicsListPage';
 import ClinicFormPage from '../pages/clinics/ClinicFormPage';
@@ -31,19 +31,19 @@ import UsersListPage from '../pages/users/UsersListPage';
 import UserFormPage from '../pages/users/UserFormPage';
 import RolesListPage from '../pages/roles/RolesListPage';
 import PermissionsListPage from '../pages/permissions/PermissionsListPage';
-import UnauthorizedPage from '../pages/UnauthorizedPage';
+import Unauthorized from '../pages/Unauthorized';
 
 const AppRoutes = () => {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
-      <Route path="/unauthorized" element={<UnauthorizedPage />} />
+      <Route path="/unauthorized" element={<Unauthorized />} />
       
       {/* 
           Base Layout Wrapper: Checks if user is logged in.
           All nested routes share the DashboardLayout.
       */}
-      <Route element={<RequireAuth><DashboardLayout /></RequireAuth>}>
+      <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
         
         {/* --- Public to Authenticated Users --- */}
         <Route path="/" element={<DashboardPage />} />
@@ -51,7 +51,7 @@ const AppRoutes = () => {
         
         {/* --- CLINICS --- */}
         {/* View: Admin, Staff */}
-        <Route element={<RequireAuth allowedRoles={['ADMIN', 'RECEPTIONIST', 'STAFF']}><Outlet /></RequireAuth>}>
+        <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'RECEPTIONIST', 'STAFF']}><Outlet /></ProtectedRoute>}>
             <Route path="/clinics" element={<ClinicsListPage />} />
             <Route path="/clinics/new" element={<ClinicFormPage />} />
             <Route path="/clinics/:id/edit" element={<ClinicFormPage />} />
@@ -59,18 +59,18 @@ const AppRoutes = () => {
 
         {/* --- DOCTORS --- */}
         {/* View List: Admin, Staff, Patient */}
-        <Route element={<RequireAuth allowedRoles={['ADMIN', 'RECEPTIONIST', 'STAFF', 'PATIENT']}><Outlet /></RequireAuth>}>
+        <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'RECEPTIONIST', 'STAFF', 'PATIENT']}><Outlet /></ProtectedRoute>}>
              <Route path="/doctors" element={<DoctorsListPage />} />
         </Route>
         {/* Manage: Admin, Staff */}
-        <Route element={<RequireAuth allowedRoles={['ADMIN', 'RECEPTIONIST', 'STAFF']}><Outlet /></RequireAuth>}>
+        <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'RECEPTIONIST', 'STAFF']}><Outlet /></ProtectedRoute>}>
              <Route path="/doctors/new" element={<DoctorFormPage />} />
              <Route path="/doctors/:id/edit" element={<DoctorFormPage />} />
         </Route>
 
         {/* --- PATIENTS --- */}
         {/* View/Manage: Admin, Staff, Doctor */}
-        <Route element={<RequireAuth allowedRoles={['ADMIN', 'RECEPTIONIST', 'STAFF', 'DOCTOR']}><Outlet /></RequireAuth>}>
+        <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'RECEPTIONIST', 'STAFF', 'DOCTOR']}><Outlet /></ProtectedRoute>}>
             <Route path="/patients" element={<PatientsListPage />} />
             <Route path="/patients/new" element={<PatientFormPage />} />
             <Route path="/patients/:id/edit" element={<PatientFormPage />} />
@@ -79,18 +79,18 @@ const AppRoutes = () => {
 
         {/* --- SCHEDULES --- */}
         {/* View: Admin, Staff, Doctor */}
-        <Route element={<RequireAuth allowedRoles={['ADMIN', 'RECEPTIONIST', 'STAFF', 'DOCTOR']}><Outlet /></RequireAuth>}>
+        <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'RECEPTIONIST', 'STAFF', 'DOCTOR']}><Outlet /></ProtectedRoute>}>
             <Route path="/schedules" element={<SchedulesListPage />} />
         </Route>
         {/* Manage: Admin, Staff */}
-        <Route element={<RequireAuth allowedRoles={['ADMIN', 'RECEPTIONIST', 'STAFF']}><Outlet /></RequireAuth>}>
+        <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'RECEPTIONIST', 'STAFF']}><Outlet /></ProtectedRoute>}>
              <Route path="/schedules/new" element={<ScheduleFormPage />} />
              <Route path="/schedules/:id/edit" element={<ScheduleFormPage />} />
         </Route>
 
         {/* --- APPOINTMENTS --- */}
         {/* View: Everyone (Context filtered in UI) */}
-        <Route element={<RequireAuth allowedRoles={['ADMIN', 'RECEPTIONIST', 'STAFF', 'DOCTOR', 'PATIENT']}><Outlet /></RequireAuth>}>
+        <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'RECEPTIONIST', 'STAFF', 'DOCTOR', 'PATIENT']}><Outlet /></ProtectedRoute>}>
             <Route path="/appointments" element={<AppointmentsListPage />} />
             <Route path="/appointments/:id" element={<AppointmentDetailsPage />} />
         </Route>
@@ -102,7 +102,7 @@ const AppRoutes = () => {
 
         {/* --- CONSULTATIONS --- */}
         {/* View: Admin, Doctor */}
-         <Route element={<RequireAuth allowedRoles={['ADMIN', 'DOCTOR']}><Outlet /></RequireAuth>}>
+         <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'DOCTOR']}><Outlet /></ProtectedRoute>}>
             <Route path="/consultations" element={<ConsultationsListPage />} />
             <Route path="/consultations/new" element={<ConsultationFormPage />} />
             <Route path="/consultations/:id/edit" element={<ConsultationFormPage />} />
@@ -110,29 +110,29 @@ const AppRoutes = () => {
 
         {/* --- PRESCRIPTIONS --- */}
         {/* View List: Admin, Doctor, Patient, Staff */}
-        <Route element={<RequireAuth allowedRoles={['ADMIN', 'DOCTOR', 'RECEPTIONIST', 'STAFF', 'PATIENT']}><Outlet /></RequireAuth>}>
+        <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'DOCTOR', 'RECEPTIONIST', 'STAFF', 'PATIENT']}><Outlet /></ProtectedRoute>}>
              <Route path="/prescriptions" element={<PrescriptionsListPage />} />
         </Route>
         {/* Manage: Admin, Doctor */}
-        <Route element={<RequireAuth allowedRoles={['ADMIN', 'DOCTOR']}><Outlet /></RequireAuth>}>
+        <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'DOCTOR']}><Outlet /></ProtectedRoute>}>
             <Route path="/prescriptions/new" element={<PrescriptionFormPage />} />
             <Route path="/prescriptions/:id/edit" element={<PrescriptionFormPage />} />
         </Route>
 
         {/* --- PAYMENTS & REFUNDS --- */}
         {/* View/Manage: Admin, Staff, Patient(View Own) */}
-        <Route element={<RequireAuth allowedRoles={['ADMIN', 'RECEPTIONIST', 'STAFF', 'PATIENT']}><Outlet /></RequireAuth>}>
+        <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'RECEPTIONIST', 'STAFF', 'PATIENT']}><Outlet /></ProtectedRoute>}>
             <Route path="/payments" element={<PaymentsListPage />} />
         </Route>
         {/* Manage Only: Admin, Staff */}
-        <Route element={<RequireAuth allowedRoles={['ADMIN', 'RECEPTIONIST', 'STAFF']}><Outlet /></RequireAuth>}>
+        <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'RECEPTIONIST', 'STAFF']}><Outlet /></ProtectedRoute>}>
              <Route path="/payments/new" element={<PaymentFormPage />} />
              <Route path="/refunds" element={<RefundsListPage />} />
              <Route path="/refunds/new" element={<RefundFormPage />} />
         </Route>
 
         {/* --- ADMIN ONLY MODULES --- */}
-        <Route element={<RequireAuth allowedRoles={['ADMIN']}><Outlet /></RequireAuth>}>
+        <Route element={<ProtectedRoute allowedRoles={['ADMIN']}><Outlet /></ProtectedRoute>}>
             <Route path="/users" element={<UsersListPage />} />
             <Route path="/users/new" element={<UserFormPage />} />
             <Route path="/users/:id/edit" element={<UserFormPage />} />
