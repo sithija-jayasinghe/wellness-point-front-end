@@ -19,6 +19,10 @@ export const AuthProvider = ({ children }) => {
         const storedUser = getStorageUser();
         const storedToken = getToken();
         if (storedUser && storedToken) {
+             // Normalize role on hydration just in case
+             if (storedUser.role) {
+                storedUser.role = storedUser.role.replace('ROLE_', '').toUpperCase();
+             }
             return {
                 ...storedUser,
                 token: storedToken
@@ -36,10 +40,14 @@ export const AuthProvider = ({ children }) => {
             if (data.token) {
                 setStorageToken(data.token);
 
+
+                // Normalize role to ensure consistency (remove ROLE_ prefix)
+                const normalizedRole = data.role ? data.role.replace('ROLE_', '').toUpperCase() : '';
+
                 const userObj = {
                     id: data.id || data.userId,
                     name: data.name || data.username,
-                    role: data.role,
+                    role: normalizedRole,
                     username: data.username,
                     token: data.token,
                     ...data
