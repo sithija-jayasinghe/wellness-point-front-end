@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { login } from '../api/auth.api';
-import { setToken, setUser } from '../auth/authStorage';
+import { useAuth } from '../context/AuthContext';
 import { useToast } from '../components/useToast';
 import Input from '../components/Input';
 import Button from '../components/Button';
@@ -13,6 +12,7 @@ const LoginPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+  const { login } = useAuth();
   const { toast } = useToast();
 
   const handleSubmit = async (e) => {
@@ -28,13 +28,11 @@ const LoginPage = () => {
 
     setIsLoading(true);
     try {
-      const data = await login(username, password);
-      // data: { token, userId, username, role }
-      setToken(data.token);
-      setUser(data);
+      const user = await login(username, password);
+      // user object returned from context handles everything
       toast({
         title: 'Welcome back!',
-        description: `Logged in as ${data.username}`,
+        description: `Logged in as ${user.name || user.username}`,
         variant: 'success',
       });
       navigate('/');
