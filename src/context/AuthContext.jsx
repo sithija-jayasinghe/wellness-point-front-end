@@ -1,4 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { registerLogout, registerNavigate } from '../api/authBridge';
 import { login as apiLogin } from '../api/auth.api';
 import { 
     getToken, 
@@ -11,15 +13,15 @@ import {
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
-    // Initialize state from local storage to handle page refreshes (hydration)
+    const navigate = useNavigate();
+
     const [user, setUserState] = useState(() => {
         const storedUser = getStorageUser();
         const storedToken = getToken();
-        // Check if we have both meaningful user data and a token
         if (storedUser && storedToken) {
             return {
                 ...storedUser,
-                token: storedToken // Ensure token is attached if needed in user object
+                token: storedToken
             };
         }
         return null;
@@ -30,36 +32,25 @@ export const AuthProvider = ({ children }) => {
     const login = async (username, password) => {
         try {
             const data = await apiLogin(username, password);
-            
-            // Expected data structure: { token, userId, username, role, ... }
+
             if (data.token) {
-                // 1. Store token
                 setStorageToken(data.token);
 
-                // 2. Prepare user object
-                // If the backend returns flat fields (userId, username, role), we structure them
-                // If it returns a nested 'user' object, we use that.
-                // Based on LoginPage.jsx context, it seems to be flat or mix.
-                // We'll construct a standardized user object.
                 const userObj = {
                     id: data.id || data.userId,
                     name: data.name || data.username,
-                    role: data.role, // e.g., 'ADMIN', 'DOCTOR'
+                    role: data.role,
                     username: data.username,
                     token: data.token,
-                    ...data // Spread rest just in case
+                    ...data
                 };
 
-                // 3. Store user in localStorage
                 setStorageUser(userObj);
-
-                // 4. Update State
                 setUserState(userObj);
-                
+
                 return userObj;
             } else {
-                 // Fallback if token is missing (unlikely if successful)
-                 throw new Error("Token not received from server");
+                throw new Error("Token not received from server");
             }
         } catch (error) {
             console.error("Login failed:", error);
@@ -70,8 +61,13 @@ export const AuthProvider = ({ children }) => {
     const logout = () => {
         clearAuth();
         setUserState(null);
-        // Optional: window.location.href = '/login'; // If specific redirect needed
+        navigate('/login');
     };
+
+    useEffect(() => {
+        registerLogout(logout);
+        registerNavigate(navigate);
+    }, [navigate]);
 
     const value = {
         user,
