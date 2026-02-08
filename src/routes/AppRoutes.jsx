@@ -1,10 +1,17 @@
 import React from 'react';
 import { Routes, Route, Outlet } from 'react-router-dom';
 import LoginPage from '../pages/LoginPage';
-import DashboardPage from '../pages/dashboard/DashboardPage';
+import DashboardRedirector from '../pages/dashboard/DashboardPage';
 import DashboardLayout from '../layout/DashboardLayout';
 import ProtectedRoute from '../components/ProtectedRoute';
 
+// Dashboards
+import AdminDashboard from '../pages/dashboard/AdminDashboard';
+import DoctorDashboard from '../pages/dashboard/DoctorDashboard';
+import PatientDashboard from '../pages/dashboard/PatientDashboard';
+import ReceptionistDashboard from '../pages/dashboard/ReceptionistDashboard';
+
+// Feature Pages
 import ClinicsListPage from '../pages/clinics/ClinicsListPage';
 import ClinicFormPage from '../pages/clinics/ClinicFormPage';
 import DoctorsListPage from '../pages/doctors/DoctorsListPage';
@@ -39,37 +46,61 @@ const AppRoutes = () => {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/unauthorized" element={<Unauthorized />} />
       
-      {/* 
-          Base Layout Wrapper: Checks if user is logged in.
-          All nested routes share the DashboardLayout.
-      */}
       <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
         
-        {/* --- Public to Authenticated Users --- */}
-        <Route path="/" element={<DashboardPage />} />
+        {/* Root Redirector */}
+        <Route path="/" element={<DashboardRedirector />} />
         <Route path="/notifications" element={<NotificationsPage />} />
+
+        {/* --- ADMIN SECTION --- */}
+        <Route path="admin" element={<ProtectedRoute allowedRoles={['ADMIN']}><Outlet /></ProtectedRoute>}>
+            <Route path="dashboard" element={<AdminDashboard />} />
+            
+            {/* Admin-Only Features */}
+            <Route path="users" element={<UsersListPage />} />
+            <Route path="users/new" element={<UserFormPage />} />
+            <Route path="users/:id/edit" element={<UserFormPage />} />
+            
+            <Route path="roles" element={<RolesListPage />} />
+            <Route path="permissions" element={<PermissionsListPage />} />
+            <Route path="audit" element={<AuditLogsPage />} />
+        </Route>
+
+        {/* --- DOCTOR SECTION --- */}
+        <Route path="doctor" element={<ProtectedRoute allowedRoles={['DOCTOR']}><Outlet /></ProtectedRoute>}>
+            <Route path="dashboard" element={<DoctorDashboard />} />
+            {/* Doctor specific features if any strictly scoped */}
+        </Route>
+
+        {/* --- RECEPTION SECTION --- */}
+        <Route path="reception" element={<ProtectedRoute allowedRoles={['RECEPTIONIST', 'STAFF']}><Outlet /></ProtectedRoute>}>
+            <Route path="dashboard" element={<ReceptionistDashboard />} />
+        </Route>
+
+        {/* --- PATIENT SECTION --- */}
+        <Route path="patient" element={<ProtectedRoute allowedRoles={['PATIENT']}><Outlet /></ProtectedRoute>}>
+            <Route path="dashboard" element={<PatientDashboard />} />
+        </Route>
         
-        {/* --- CLINICS --- */}
-        {/* View: Admin, Staff */}
+        {/* --- SHARED RESOURCES (Keeping flat for shared access) --- */}
+        
+        {/* CLINICS (Admin, Reception) */}
         <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'RECEPTIONIST', 'STAFF']}><Outlet /></ProtectedRoute>}>
             <Route path="/clinics" element={<ClinicsListPage />} />
             <Route path="/clinics/new" element={<ClinicFormPage />} />
             <Route path="/clinics/:id/edit" element={<ClinicFormPage />} />
         </Route>
 
-        {/* --- DOCTORS --- */}
-        {/* View List: Admin, Staff, Patient */}
+        {/* DOCTORS (Admin, Reception, Patient) */}
         <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'RECEPTIONIST', 'STAFF', 'PATIENT']}><Outlet /></ProtectedRoute>}>
              <Route path="/doctors" element={<DoctorsListPage />} />
         </Route>
-        {/* Manage: Admin, Staff */}
         <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'RECEPTIONIST', 'STAFF']}><Outlet /></ProtectedRoute>}>
              <Route path="/doctors/new" element={<DoctorFormPage />} />
              <Route path="/doctors/:id/edit" element={<DoctorFormPage />} />
         </Route>
 
-        {/* --- PATIENTS --- */}
-        {/* View/Manage: Admin, Staff, Doctor */}
+        {/* PATIENTS (Admin, Reception, Doctor) */}
         <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'RECEPTIONIST', 'STAFF', 'DOCTOR']}><Outlet /></ProtectedRoute>}>
             <Route path="/patients" element={<PatientsListPage />} />
             <Route path="/patients/new" element={<PatientFormPage />} />
@@ -77,69 +108,48 @@ const AppRoutes = () => {
             <Route path="/patients/:id/history" element={<PatientHistoryPage />} />
         </Route>
 
-        {/* --- SCHEDULES --- */}
-        {/* View: Admin, Staff, Doctor */}
+        {/* SCHEDULES (Admin, Reception, Doctor) */}
         <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'RECEPTIONIST', 'STAFF', 'DOCTOR']}><Outlet /></ProtectedRoute>}>
             <Route path="/schedules" element={<SchedulesListPage />} />
         </Route>
-        {/* Manage: Admin, Staff */}
         <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'RECEPTIONIST', 'STAFF']}><Outlet /></ProtectedRoute>}>
              <Route path="/schedules/new" element={<ScheduleFormPage />} />
              <Route path="/schedules/:id/edit" element={<ScheduleFormPage />} />
         </Route>
 
-        {/* --- APPOINTMENTS --- */}
-        {/* View: Everyone (Context filtered in UI) */}
+        {/* APPOINTMENTS (Everyone) */}
         <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'RECEPTIONIST', 'STAFF', 'DOCTOR', 'PATIENT']}><Outlet /></ProtectedRoute>}>
             <Route path="/appointments" element={<AppointmentsListPage />} />
             <Route path="/appointments/:id" element={<AppointmentDetailsPage />} />
         </Route>
-        {/* Create/Edit: Admin, Staff, Patient(Create Own) */}
-        {/* Refinement: Doctors usually don't create appointments for themselves, but maybe for patients? Left open for now. */}
         <Route path="/appointments/new" element={<AppointmentFormPage />} />
         <Route path="/appointments/:id/edit" element={<AppointmentFormPage />} />
 
 
-        {/* --- CONSULTATIONS --- */}
-        {/* View: Admin, Doctor */}
+        {/* CONSULTATIONS (Admin, Doctor) */}
          <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'DOCTOR']}><Outlet /></ProtectedRoute>}>
             <Route path="/consultations" element={<ConsultationsListPage />} />
             <Route path="/consultations/new" element={<ConsultationFormPage />} />
             <Route path="/consultations/:id/edit" element={<ConsultationFormPage />} />
         </Route>
 
-        {/* --- PRESCRIPTIONS --- */}
-        {/* View List: Admin, Doctor, Patient, Staff */}
+        {/* PRESCRIPTIONS (Admin, Doctor, Patient, Staff) */}
         <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'DOCTOR', 'RECEPTIONIST', 'STAFF', 'PATIENT']}><Outlet /></ProtectedRoute>}>
              <Route path="/prescriptions" element={<PrescriptionsListPage />} />
         </Route>
-        {/* Manage: Admin, Doctor */}
         <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'DOCTOR']}><Outlet /></ProtectedRoute>}>
             <Route path="/prescriptions/new" element={<PrescriptionFormPage />} />
             <Route path="/prescriptions/:id/edit" element={<PrescriptionFormPage />} />
         </Route>
 
-        {/* --- PAYMENTS & REFUNDS --- */}
-        {/* View/Manage: Admin, Staff, Patient(View Own) */}
+        {/* PAYMENTS & REFUNDS (Admin, Staff, Patient) */}
         <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'RECEPTIONIST', 'STAFF', 'PATIENT']}><Outlet /></ProtectedRoute>}>
             <Route path="/payments" element={<PaymentsListPage />} />
         </Route>
-        {/* Manage Only: Admin, Staff */}
         <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'RECEPTIONIST', 'STAFF']}><Outlet /></ProtectedRoute>}>
              <Route path="/payments/new" element={<PaymentFormPage />} />
              <Route path="/refunds" element={<RefundsListPage />} />
              <Route path="/refunds/new" element={<RefundFormPage />} />
-        </Route>
-
-        {/* --- ADMIN ONLY MODULES --- */}
-        <Route element={<ProtectedRoute allowedRoles={['ADMIN']}><Outlet /></ProtectedRoute>}>
-            <Route path="/users" element={<UsersListPage />} />
-            <Route path="/users/new" element={<UserFormPage />} />
-            <Route path="/users/:id/edit" element={<UserFormPage />} />
-            
-            <Route path="/roles" element={<RolesListPage />} />
-            <Route path="/permissions" element={<PermissionsListPage />} />
-            <Route path="/audit" element={<AuditLogsPage />} />
         </Route>
 
       </Route>

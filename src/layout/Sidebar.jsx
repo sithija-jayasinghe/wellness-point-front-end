@@ -36,9 +36,9 @@ const Sidebar = () => {
     { icon: CreditCard, label: 'Payments', path: '/payments', roles: ['ADMIN', 'RECEPTIONIST', 'STAFF', 'PATIENT'] },
     { icon: RotateCcw, label: 'Refunds', path: '/refunds', roles: ['ADMIN', 'RECEPTIONIST', 'STAFF'] },
     { icon: Bell, label: 'Notifications', path: '/notifications', roles: ['ADMIN', 'DOCTOR', 'RECEPTIONIST', 'STAFF', 'PATIENT'] },
-    { icon: UserCog, label: 'Users', path: '/users', roles: ['ADMIN'] },
-    { icon: Shield, label: 'Roles', path: '/roles', roles: ['ADMIN'] },
-    { icon: Key, label: 'Permissions', path: '/permissions', roles: ['ADMIN'] },
+    { icon: UserCog, label: 'Users', path: '/admin/users', roles: ['ADMIN'] },
+    { icon: Shield, label: 'Roles', path: '/admin/roles', roles: ['ADMIN'] },
+    { icon: Key, label: 'Permissions', path: '/admin/permissions', roles: ['ADMIN'] },
   ];
 
   return (
