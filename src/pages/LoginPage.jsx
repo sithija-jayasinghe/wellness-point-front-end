@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../components/useToast';
 import Input from '../components/Input';
@@ -12,6 +12,7 @@ const LoginPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
   const { login } = useAuth();
   const { toast } = useToast();
 
@@ -35,7 +36,36 @@ const LoginPage = () => {
         description: `Logged in as ${user.name || user.username}`,
         variant: 'success',
       });
-      navigate('/');
+
+      // Normalize role (remove ROLE_ prefix if present and uppercase)
+      const role = user.role ? user.role.replace('ROLE_', '').toUpperCase() : '';
+
+      // Check for redirect path
+      const from = location.state?.from?.pathname;
+      
+      if (from) {
+          navigate(from, { replace: true });
+      } else {
+          // Role-based redirection
+          switch (role) {
+              case 'ADMIN':
+                  navigate('/admin/dashboard', { replace: true });
+                  break;
+              case 'DOCTOR':
+                  navigate('/doctor/dashboard', { replace: true });
+                  break;
+              case 'RECEPTIONIST':
+                  navigate('/reception/dashboard', { replace: true });
+                  break;
+              case 'PATIENT':
+                  navigate('/patient/dashboard', { replace: true });
+                  break;
+              default:
+                  // Default fallback or unauthorized
+                  navigate('/', { replace: true });
+                  break;
+          }
+      }
     } catch (error) {
       toast({
         title: 'Login Failed',

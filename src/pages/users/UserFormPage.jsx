@@ -98,7 +98,7 @@ const UserFormPage = () => {
                     }
                 } else {
                     toast({ title: 'Error', description: 'User not found', variant: 'destructive' });
-                    navigate('/users');
+                    navigate('/admin/users');
                 }
             }
         } catch (error) {
@@ -244,7 +244,7 @@ const UserFormPage = () => {
 
                 toast({ title: 'Success', description: 'User registered successfully', variant: 'success' });
             }
-            navigate('/users');
+            navigate('/admin/users');
         } catch (err) {
             console.error('Failed to save user', err);
             let msg = err.response?.data?.message || 'Failed to save user';
@@ -274,7 +274,7 @@ const UserFormPage = () => {
                     <Button 
                         variant="outline" 
                         className="border-blue-500 text-blue-600 hover:bg-blue-50 hover:text-blue-700" 
-                        onClick={() => navigate('/users')} 
+                        onClick={() => navigate('/admin/users')} 
                         icon={ArrowLeft}
                     >
                         Back to List
@@ -435,7 +435,7 @@ const UserFormPage = () => {
                         <Button
                             type="button"
                             variant="ghost"
-                            onClick={() => navigate('/users')}
+                            onClick={() => navigate('/admin/users')}
                         >
                             Cancel
                         </Button>

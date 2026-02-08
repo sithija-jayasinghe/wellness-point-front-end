@@ -178,7 +178,7 @@ const UsersListPage = () => {
                 title="Users Management" 
                 description="Manage system users and access."
                 actions={
-                    <Button onClick={() => navigate('/users/new')} icon={Plus}>
+                    <Button onClick={() => navigate('/admin/users/new')} icon={Plus}>
                         New User
                     </Button>
                 }
@@ -204,7 +204,7 @@ const UsersListPage = () => {
                             description={searchTerm ? "Try adjusting your search terms" : "Get started by creating a new user"}
                             icon={Users}
                             action={!searchTerm && (
-                                <Button onClick={() => navigate('/users/new')} variant="outline">
+                                <Button onClick={() => navigate('/admin/users/new')} variant="outline">
                                     New User
                                 </Button>
                             )}
@@ -243,7 +243,7 @@ const UsersListPage = () => {
                                             <Button 
                                                 variant="ghost" 
                                                 size="sm"
-                                                onClick={() => navigate(`/users/${user.userId}/edit`)}
+                                                onClick={() => navigate(`/admin/users/${user.userId}/edit`)}
                                                 className="h-8 w-8 p-0 text-gray-500 hover:text-blue-600"
                                                 title="Edit"
                                             >
