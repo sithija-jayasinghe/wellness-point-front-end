@@ -20,24 +20,24 @@ import {
 import { cn } from '../utils';
 
 const Sidebar = ({ user }) => {
-  const isAdmin = user?.role === 'ADMIN';
+  const userRole = user?.role;
 
   const menuItems = [
-    { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
-    { icon: Building2, label: 'Clinics', path: '/clinics' },
-    { icon: Stethoscope, label: 'Doctors', path: '/doctors' },
-    { icon: Users, label: 'Patients', path: '/patients' },
-    { icon: Calendar, label: 'Schedules', path: '/schedules' },
-    { icon: Clock, label: 'Appointments', path: '/appointments' },
-    { icon: FileText, label: 'Consultations', path: '/consultations' },
-    { icon: Pill, label: 'Prescriptions', path: '/prescriptions' },
-    { icon: CreditCard, label: 'Payments', path: '/payments' },
-    { icon: RotateCcw, label: 'Refunds', path: '/refunds' },
-    { icon: Bell, label: 'Notifications', path: '/notifications' },
+    { icon: LayoutDashboard, label: 'Dashboard', path: '/', roles: ['ADMIN', 'DOCTOR', 'RECEPTIONIST', 'PATIENT', 'STAFF'] },
+    { icon: Building2, label: 'Clinics', path: '/clinics', roles: ['ADMIN', 'RECEPTIONIST', 'STAFF'] },
+    { icon: Stethoscope, label: 'Doctors', path: '/doctors', roles: ['ADMIN', 'RECEPTIONIST', 'STAFF', 'PATIENT'] },
+    { icon: Users, label: 'Patients', path: '/patients', roles: ['ADMIN', 'RECEPTIONIST', 'STAFF', 'DOCTOR'] },
+    { icon: Calendar, label: 'Schedules', path: '/schedules', roles: ['ADMIN', 'RECEPTIONIST', 'STAFF', 'DOCTOR'] },
+    { icon: Clock, label: 'Appointments', path: '/appointments', roles: ['ADMIN', 'RECEPTIONIST', 'STAFF', 'DOCTOR', 'PATIENT'] },
+    { icon: FileText, label: 'Consultations', path: '/consultations', roles: ['ADMIN', 'DOCTOR'] },
+    { icon: Pill, label: 'Prescriptions', path: '/prescriptions', roles: ['ADMIN', 'DOCTOR', 'PATIENT', 'RECEPTIONIST', 'STAFF'] },
+    { icon: CreditCard, label: 'Payments', path: '/payments', roles: ['ADMIN', 'RECEPTIONIST', 'STAFF', 'PATIENT'] },
+    { icon: RotateCcw, label: 'Refunds', path: '/refunds', roles: ['ADMIN', 'RECEPTIONIST', 'STAFF'] },
+    { icon: Bell, label: 'Notifications', path: '/notifications', roles: ['ADMIN', 'DOCTOR', 'RECEPTIONIST', 'STAFF', 'PATIENT'] },
     // Admin only
-    { icon: UserCog, label: 'Users', path: '/users', adminOnly: true },
-    { icon: Shield, label: 'Roles', path: '/roles', adminOnly: true },
-    { icon: Key, label: 'Permissions', path: '/permissions', adminOnly: true },
+    { icon: UserCog, label: 'Users', path: '/users', roles: ['ADMIN'] },
+    { icon: Shield, label: 'Roles', path: '/roles', roles: ['ADMIN'] },
+    { icon: Key, label: 'Permissions', path: '/permissions', roles: ['ADMIN'] },
   ];
 
   return (
@@ -53,8 +53,9 @@ const Sidebar = ({ user }) => {
       <div className="flex-1 flex flex-col overflow-y-auto pt-5 pb-4">
         <nav className="mt-1 flex-1 space-y-1 px-2">
           {menuItems.map((item) => {
-            if (item.adminOnly && !isAdmin) return null;
-            
+             // If roles are defined and user role is NOT in them, hide it
+             if (item.roles && !item.roles.includes(userRole)) return null;
+
             return (
               <NavLink
                 key={item.path}
