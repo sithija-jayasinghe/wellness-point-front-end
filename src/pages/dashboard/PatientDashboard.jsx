@@ -1,11 +1,14 @@
 import React from 'react';
+import { useAuth } from '../../context/AuthContext';
 import { FileText, Calendar, Clock } from 'lucide-react';
 
-const PatientDashboard = ({ user }) => {
+const PatientDashboard = () => {
+    const { user } = useAuth();
+
     return (
         <div className="space-y-6">
              <div className="bg-gradient-to-r from-teal-600 to-cyan-600 rounded-2xl p-8 text-white">
-                <h1 className="text-3xl font-bold mb-2">Welcome, {user?.username}</h1>
+                <h1 className="text-3xl font-bold mb-2">Welcome, {user?.name || user?.username}</h1>
                 <p className="text-teal-100">Track your health journey and upcoming appointments.</p>
             </div>
 
