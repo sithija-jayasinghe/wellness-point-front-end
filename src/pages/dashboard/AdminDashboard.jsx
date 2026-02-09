@@ -4,6 +4,7 @@ import {
   Users, Calendar, Banknote,  
   TrendingUp, ArrowUpRight, Activity 
 } from 'lucide-react';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { cn } from '../../utils';
 import { getAllPatients } from '../../api/patients.api';
 import { getAllAppointments } from '../../api/appointments.api';
@@ -97,6 +98,7 @@ const AdminDashboard = () => {
       doctors: 0
     });
     const [todaysAppointments, setTodaysAppointments] = useState([]);
+    const [revenueData, setRevenueData] = useState([]);
     const [loading, setLoading] = useState(true);
   
     useEffect(() => {
@@ -110,7 +112,7 @@ const AdminDashboard = () => {
           ]);
   
           // Calculate Stats
-          const totalRevenue = paymentsData.reduce((sum, p) => sum + (p.amount || 0), 0);
+          const totalRevenue = paymentsData.reduce((sum, p) => sum + Number(p.amount || 0), 0);
           
           setStats({
             patients: patientsData.length,
@@ -118,18 +120,69 @@ const AdminDashboard = () => {
             revenue: totalRevenue,
             doctors: doctorsData.length
           });
+
+          // Calculate Revenue Trend (Last 7 Days)
+          const last7Days = Array.from({ length: 7 }, (_, i) => {
+            const d = new Date();
+            d.setDate(d.getDate() - (6 - i));
+            return d;
+          });
+
+          const trendData = last7Days.map(day => {
+            const dayTotal = paymentsData
+                .filter(p => {
+                    // Try date fields: paymentDate, date, or createdAt
+                    const dateVal = p.paymentDate || p.date || p.createdAt;
+                    if (!dateVal) return false;
+                    
+                    const pDate = parseDate(dateVal);
+                    // Ensure valid date
+                    if (isNaN(pDate.getTime())) return false;
+
+                    return isSameDay(pDate, day);
+                })
+                .reduce((sum, p) => sum + Number(p.amount || 0), 0);
+
+             return {
+                name: day.toLocaleDateString('en-US', { weekday: 'short' }),
+                date: day.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+                value: dayTotal
+            };
+          });
+          setRevenueData(trendData);
   
           // Filter Today's Appointments
           const today = new Date();
           const todays = appointmentsData
             .filter(appt => {
-                const apptDate = parseDate(appt.appointmentDate);
+                // Correct field is appointmentTime based on AppointmentsListPage
+                const dateVal = appt.appointmentTime || appt.appointmentDate;
+                if (!dateVal) return false;
+
+                const apptDate = parseDate(dateVal);
                 return isSameDay(apptDate, today);
             })
-            // Sort by time? Assuming date array has time.
+            // Sort by time?
+            .sort((a, b) => {
+                 const dA = parseDate(a.appointmentTime || a.appointmentDate);
+                 const dB = parseDate(b.appointmentTime || b.appointmentDate);
+                 return dA - dB;
+            })
             .slice(0, 5); // Take top 5
   
-          setTodaysAppointments(todays);
+          // Map IDs to Names for display
+          const enrichedTodays = todays.map(appt => {
+             const patient = patientsData.find(p => p.id === appt.patientId);
+             const doctor = doctorsData.find(d => d.id === appt.doctorId); // Assuming doctorId exists
+             
+             return {
+                 ...appt,
+                 patientName: patient ? patient.name : `Patient #${appt.patientId}`,
+                 doctorName: doctor ? doctor.name : appt.doctorName || `Doctor #${appt.doctorId}`
+             };
+          });
+
+          setTodaysAppointments(enrichedTodays);
         } catch (error) {
           console.error("Failed to load dashboard data", error);
         } finally {
@@ -155,7 +208,7 @@ const AdminDashboard = () => {
             value={stats.patients} 
             icon={Users} 
             color="blue" 
-            trend="12% vs last month"
+            // Removed hardcoded trend to reflect real data state
           />
           <StatCard 
             title="Total Appointments" 
@@ -169,7 +222,7 @@ const AdminDashboard = () => {
             value={formatCurrency(stats.revenue)} 
             icon={Banknote} 
             color="green" 
-            trend="8% vs last month"
+            // Removed hardcoded trend to reflect real data state
           />
           <StatCard 
             title="Active Doctors" 
@@ -178,8 +231,55 @@ const AdminDashboard = () => {
             color="cyan" 
           />
         </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Revenue Analytics Chart */}
+            <div className="lg:col-span-2 bg-white rounded-[24px] border border-gray-100 shadow-sm p-8">
+                <div className="mb-8">
+                    <h2 className="text-lg font-bold text-gray-900">Revenue Analytics</h2>
+                    <p className="text-sm text-gray-500">Income trends over the last 7 days</p>
+                </div>
+                <div className="h-[300px] w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={revenueData}>
+                            <defs>
+                                <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.1}/>
+                                    <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                                </linearGradient>
+                            </defs>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+                            <XAxis 
+                                dataKey="name" 
+                                axisLine={false} 
+                                tickLine={false} 
+                                tick={{fill: '#9ca3af', fontSize: 12}} 
+                                dy={10}
+                            />
+                            <YAxis 
+                                axisLine={false} 
+                                tickLine={false} 
+                                tick={{fill: '#9ca3af', fontSize: 12}} 
+                                tickFormatter={(value) => `${value}`}
+                            />
+                            <Tooltip 
+                                contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                                formatter={(value) => [`LKR ${value.toLocaleString()}`, 'Revenue']}
+                            />
+                            <Area 
+                                type="monotone" 
+                                dataKey="value" 
+                                stroke="#10b981" 
+                                strokeWidth={3}
+                                fillOpacity={1} 
+                                fill="url(#colorRevenue)" 
+                            />
+                        </AreaChart>
+                    </ResponsiveContainer>
+                </div>
+            </div>
   
-        <div className="bg-white rounded-[24px] border border-gray-100 shadow-sm p-8">
+            <div className="bg-white rounded-[24px] border border-gray-100 shadow-sm p-8">
             <div className="flex items-center justify-between mb-8">
                 <div>
                     <h2 className="text-lg font-bold text-gray-900">Today's Schedule</h2>
@@ -191,14 +291,14 @@ const AdminDashboard = () => {
             <div className="space-y-4">
                 {todaysAppointments.length > 0 ? (
                     todaysAppointments.map((appt, idx) => {
-                        const dateObj = parseDate(appt.appointmentDate);
+                        const dateObj = parseDate(appt.appointmentTime || appt.appointmentDate);
                         const timeStr = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                         return (
                             <ScheduleItem 
                                 key={appt.id || idx}
                                 time={timeStr}
-                                patient={appt.patientName || `Patient #${appt.patientId}`}
-                                doctor={appt.doctorName || `Doctor #${appt.doctorId}`}
+                                patient={appt.patientName}
+                                doctor={appt.doctorName}
                                 status={appt.status}
                             />
                         );
@@ -209,7 +309,8 @@ const AdminDashboard = () => {
             </div>
         </div>
       </div>
-    );
-  };
+    </div>
+  );
+};
 
 export default AdminDashboard;
