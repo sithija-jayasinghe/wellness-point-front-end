@@ -1,18 +1,18 @@
 import http from './http';
 
 export const getAllAppointments = async () => {
-    const response = await http.get('/appointment/get-all');
+    const response = await http.get('/api/appointments/get-all');
     return response.data;
 };
 
 export const getAppointmentById = async (id) => {
-    const response = await http.get(`/appointment/${id}`);
+    const response = await http.get(`/api/appointments/${id}`);
     return response.data;
 };
 
 export const bookAppointment = async (data) => {
     // CORRECTED: Changed '/add' to '/book' based on your Controller
-    const response = await http.post('/appointment/book', data);
+    const response = await http.post('/api/appointments/book', data);
     return response.data;
 };
 
@@ -31,23 +31,23 @@ const formatTimeForUpdate = (t) => {
 };
 
 export const updateAppointment = async (id, data) => {
-    const response = await http.put(`/appointment/update/${id}`, data);
+    const response = await http.put(`/api/appointments/update/${id}`, data);
     return response.data;
 };
 
 export const cancelAppointment = async (id) => {
     // There is a dedicated endpoint for cancellation which is much cleaner
-    const response = await http.put(`/appointment/${id}/cancel`);
+    const response = await http.put(`/api/appointments/${id}/cancel`);
     return response.data;
 };
 
 export const completeAppointment = async (id) => {
     // There is a dedicated endpoint for completion which is much cleaner
-    const response = await http.put(`/appointment/${id}/complete`);
+    const response = await http.put(`/api/appointments/${id}/complete`);
     return response.data;
 };
 
 export const deleteAppointment = async (id) => {
-    const response = await http.delete(`/appointment/delete/${id}`);
+    const response = await http.delete(`/api/appointments/delete/${id}`);
     return response.data;
 };

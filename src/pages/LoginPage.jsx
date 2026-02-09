@@ -38,7 +38,8 @@ const LoginPage = () => {
       });
 
       // Normalize role (remove ROLE_ prefix if present and uppercase)
-      const role = user.role ? user.role.replace('ROLE_', '').toUpperCase() : '';
+      // Uppercase first to handle mixed case 'Role_'
+      const role = user.role ? user.role.toUpperCase().replace('ROLE_', '').trim() : '';
 
       // Check for redirect path
       const from = location.state?.from?.pathname;
@@ -46,25 +47,8 @@ const LoginPage = () => {
       if (from) {
           navigate(from, { replace: true });
       } else {
-          // Role-based redirection
-          switch (role) {
-              case 'ADMIN':
-                  navigate('/admin/dashboard', { replace: true });
-                  break;
-              case 'DOCTOR':
-                  navigate('/doctor/dashboard', { replace: true });
-                  break;
-              case 'RECEPTIONIST':
-                  navigate('/reception/dashboard', { replace: true });
-                  break;
-              case 'PATIENT':
-                  navigate('/patient/dashboard', { replace: true });
-                  break;
-              default:
-                  // Default fallback or unauthorized
-                  navigate('/', { replace: true });
-                  break;
-          }
+        // Redirect to root, enabling the DashboardRedirector to handle role-based routing
+        navigate('/', { replace: true });
       }
     } catch (error) {
       toast({
