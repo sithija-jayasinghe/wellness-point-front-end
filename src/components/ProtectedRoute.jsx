@@ -7,15 +7,24 @@ const ProtectedRoute = ({ children, allowedRoles = [] }) => {
   const location = useLocation();
 
   if (!isAuthenticated || !user) {
-    // Redirect them to the /login page, but save the current location they were
-    // trying to go to when they were redirected.
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // If roles are restricted and user role is not in the allowed list
-  // We check if allowedRoles has entries (if empty, we assume the route is open to any authenticated user)
-  if (allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
-    return <Navigate to="/unauthorized" replace />;
+  // Debugging logs to console to trace access issues
+  // console.log("Protected Route Check:", { path: location.pathname, userRole: user?.role, allowedRoles });
+
+  // Normalize user role for comparison (robustness)
+  const userRole = user.role ? user.role.toUpperCase().trim() : '';
+
+  if (allowedRoles.length > 0) {
+      // Check if ANY of the allowed roles match the user's role
+      // We also normalize allowedRoles to uppercase to be safe
+      const hasPermission = allowedRoles.some(role => role.toUpperCase().trim() === userRole);
+
+      if (!hasPermission) {
+        console.warn(`Access Denied: User role '${userRole}' not in allowed roles:`, allowedRoles);
+        return <Navigate to="/unauthorized" replace />;
+      }
   }
 
   return children;

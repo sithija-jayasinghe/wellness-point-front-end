@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, User, Calendar, Clock, Activity, CheckCircle, XCircle } from 'lucide-react';
-import { getAllAppointments } from '../../api/appointments.api'; 
+import { ArrowLeft, User, Calendar, Clock, Activity, CheckCircle, XCircle, Trash2, CreditCard } from 'lucide-react';
+import { getAllAppointments, deleteAppointment } from '../../api/appointments.api'; 
 import { getAllPatients } from '../../api/patients.api';
 import { getAllSchedules } from '../../api/schedules.api';
 import { getAllDoctors } from '../../api/doctors.api';
@@ -9,17 +9,20 @@ import PageHeader from '../../components/PageHeader';
 import Button from '../../components/Button';
 import Spinner from '../../components/Spinner';
 import { useToast } from '../../components/useToast';
+import { useAuth } from '../../context/AuthContext';
 
 const AppointmentDetailsPage = () => {
     const navigate = useNavigate();
     const { id } = useParams();
     const { toast } = useToast();
+    const { user } = useAuth();
     
     const [appointment, setAppointment] = useState(null);
     const [patient, setPatient] = useState(null);
     const [schedule, setSchedule] = useState(null);
     const [doctor, setDoctor] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [actionLoading, setActionLoading] = useState(false);
 
     // Helper to parse date data into Date object
     const getAppointmentDateObj = (dateData) => {
@@ -85,8 +88,10 @@ const AppointmentDetailsPage = () => {
     };
 
     useEffect(() => {
-        fetchData();
-    }, [id]);
+        if (user) {
+            fetchData();
+        }
+    }, [id, user]);
 
     const fetchData = async () => {
         try {
@@ -107,13 +112,23 @@ const AppointmentDetailsPage = () => {
                 return;
             }
 
-            setAppointment(apt);
-
-            // Find related data
+            // Find related data first to perform checks
+            let pat = null;
             if (apt.patientId) {
-                const pat = patients.find(p => p.id === apt.patientId);
-                setPatient(pat);
+                pat = patients.find(p => p.id === apt.patientId);
             }
+
+            // RBAC Check: If Patient, ensure they own the appointment
+            if (user?.role === 'PATIENT') {
+                // If patient not found OR patient userId doesn't match logged in user
+                if (!pat || String(pat.userId) !== String(user.id)) {
+                    navigate('/unauthorized');
+                    return;
+                }
+            }
+
+            setAppointment(apt);
+            setPatient(pat);
 
             if (apt.scheduleId) {
                 const sch = schedules.find(s => s.id === apt.scheduleId);
@@ -133,6 +148,27 @@ const AppointmentDetailsPage = () => {
         }
     };
 
+    const handleDelete = async () => {
+        if (!window.confirm('Are you sure you want to delete this appointment?')) return;
+        
+        try {
+            setActionLoading(true);
+            await deleteAppointment(id);
+            toast({ title: 'Success', description: 'Appointment deleted successfully', variant: 'success' });
+            navigate('/appointments');
+        } catch (error) {
+            console.error('Failed to delete appointment', error);
+            toast({ title: 'Error', description: 'Failed to delete appointment', variant: 'destructive' });
+        } finally {
+            setActionLoading(false);
+        }
+    };
+
+    const handleProcessPayment = () => {
+        // Navigate to payment creation with pre-filled data
+        navigate(`/payments/new?appointmentId=${id}&amount=${doctor?.consultationFee || 0}&patientId=${patient?.id || ''}`);
+    };
+
     if (loading) {
         return <div className="flex items-center justify-center min-h-[400px]"><Spinner size="lg" /></div>;
     }
@@ -145,9 +181,32 @@ const AppointmentDetailsPage = () => {
                 title="Appointment Details"
                 description={`Reference #${appointment.id}`}
                 actions={
-                    <Button variant="ghost" onClick={() => navigate('/appointments')} icon={ArrowLeft}>
-                        Back to List
-                    </Button>
+                    <div className="flex items-center gap-2">
+                         <Button variant="ghost" onClick={() => navigate('/appointments')} icon={ArrowLeft}>
+                            Back to List
+                        </Button>
+                        
+                        {user?.role === 'ADMIN' && (
+                            <Button 
+                                variant="destructive" 
+                                onClick={handleDelete} 
+                                icon={Trash2}
+                                disabled={actionLoading}
+                            >
+                                {actionLoading ? 'Deleting...' : 'Delete'}
+                            </Button>
+                        )}
+
+                        {user?.role === 'RECEPTIONIST' && appointment.status === 'Completed' && (
+                            <Button 
+                                className="bg-green-600 hover:bg-green-700 text-white" 
+                                onClick={handleProcessPayment} 
+                                icon={CreditCard}
+                            >
+                                Process Payment
+                            </Button>
+                        )}
+                    </div>
                 }
             />
 

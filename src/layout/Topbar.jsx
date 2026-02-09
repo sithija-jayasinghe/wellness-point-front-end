@@ -1,15 +1,15 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
 import { LogOut, User, Bell } from 'lucide-react';
-import { clearAuth } from '../auth/authStorage';
+import { useAuth } from '../context/AuthContext';
 import Button from '../components/Button';
 
-const Topbar = ({ user }) => {
-  const navigate = useNavigate();
+const Topbar = () => {
+  const { user, logout } = useAuth();
 
-  const handleLogout = () => {
-    clearAuth();
-    navigate('/login');
+  const getRoleLabel = (role) => {
+      if (!role) return 'Staff';
+      // Convert "DOCTOR" to "Doctor"
+      return role.charAt(0).toUpperCase() + role.slice(1).toLowerCase();
   };
 
   return (
@@ -32,11 +32,11 @@ const Topbar = ({ user }) => {
                 <User className="h-5 w-5" />
             </div>
             <div className="hidden md:block text-sm text-right">
-                <p className="font-medium text-gray-700">{user?.username || 'User'}</p>
-                <p className="text-xs text-gray-500">{user?.role || 'Staff'}</p>
+                <p className="font-medium text-gray-700">{user?.name || user?.username || 'User'}</p>
+                <p className="text-xs text-gray-500">{getRoleLabel(user?.role)}</p>
             </div>
           </div>
-          <Button variant="ghost" size="icon" onClick={handleLogout} title="Logout">
+          <Button variant="ghost" size="icon" onClick={logout} title="Logout">
             <LogOut className="h-5 w-5 text-gray-500" />
           </Button>
         </div>

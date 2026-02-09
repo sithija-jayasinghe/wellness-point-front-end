@@ -6,10 +6,15 @@ import Spinner from '../../components/Spinner';
 const DashboardRedirector = () => {
     const { user, isAuthenticated } = useAuth(); // Using context instead of direct storage
 
-    if (!user && !isAuthenticated) return <Navigate to="/login" replace />;
-    if (!user) return <Spinner fullScreen />; // AuthContext loading state usually handles this
+    if (!isAuthenticated) return <Navigate to="/login" replace />;
+    // If user is authenticated but user object isn't fully loaded yet, show spinner
+    // This prevents premature redirection to unauthorized/login
+    if (!user) return <Spinner fullScreen />;
 
-    switch (user.role) {
+    // Normalize role check (handle case sensitivity)
+    const role = user.role ? user.role.toUpperCase().trim() : '';
+
+    switch (role) {
         case 'ADMIN':
             return <Navigate to="/admin/dashboard" replace />;
         case 'DOCTOR':
@@ -17,10 +22,12 @@ const DashboardRedirector = () => {
         case 'RECEPTIONIST':
             return <Navigate to="/reception/dashboard" replace />;
         case 'STAFF':
+            // Assuming STAFF shares dashboard with Receptionist
             return <Navigate to="/reception/dashboard" replace />;
         case 'PATIENT':
             return <Navigate to="/patient/dashboard" replace />;
         default:
+            console.warn("Unknown Role:", role);
             return <Navigate to="/unauthorized" replace />;
     }
 };
