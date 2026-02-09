@@ -12,17 +12,12 @@ import { getAllDoctors } from '../../api/doctors.api';
 import { getAllSchedules } from '../../api/schedules.api';
 import Spinner from '../../components/Spinner';
 
-// Helper to parse date data into Date object
-const parseDate = (dateData) => {
-    if (!dateData) return new Date();
-    
-    let dateObj;
-    if (Array.isArray(dateData)) {
-        const [year, month, day, hour, minute, second = 0] = dateData;
-        // Note: Java month is 1-12, JS Date month is 0-11
-        dateObj = new Date(year, month - 1, day, hour, minute, second);
-    } else {
-        dateObj = new Date(dateData);
+// Reuse helper functions or import them if extracted. 
+
+const parseDate = (dateArr) => {
+    if (!dateArr) return new Date();
+    if (Array.isArray(dateArr)) {
+        return new Date(dateArr[0], dateArr[1] - 1, dateArr[2], dateArr[3] || 0, dateArr[4] || 0);
     }
 
     return isNaN(dateObj.getTime()) ? new Date() : dateObj;
