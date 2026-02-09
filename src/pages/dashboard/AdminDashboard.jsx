@@ -2,29 +2,30 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Users, Calendar, Banknote,  
-  TrendingUp, ArrowUpRight, Activity, FileText 
+  TrendingUp, ArrowUpRight, Activity 
 } from 'lucide-react';
-import { 
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, Legend 
-} from 'recharts';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import { cn } from '../../utils';
 import { getAllPatients } from '../../api/patients.api';
 import { getAllAppointments } from '../../api/appointments.api';
 import { getAllPayments } from '../../api/payments.api';
 import { getAllDoctors } from '../../api/doctors.api';
+import { getAllSchedules } from '../../api/schedules.api';
 import Spinner from '../../components/Spinner';
 
-// Reuse helper functions or import them if extracted. 
-// For now, I'll keep them local to avoid breaking if utils changes.
-const parseDate = (dateArr) => {
-    if (!dateArr) return new Date();
-    if (Array.isArray(dateArr)) {
-        return new Date(dateArr[0], dateArr[1] - 1, dateArr[2], dateArr[3] || 0, dateArr[4] || 0);
+// Helper to parse date data into Date object
+const parseDate = (dateData) => {
+    if (!dateData) return new Date();
+    
+    let dateObj;
+    if (Array.isArray(dateData)) {
+        const [year, month, day, hour, minute, second = 0] = dateData;
+        // Note: Java month is 1-12, JS Date month is 0-11
+        dateObj = new Date(year, month - 1, day, hour, minute, second);
+    } else {
+        dateObj = new Date(dateData);
     }
-    return new Date(dateArr);
+
+    return isNaN(dateObj.getTime()) ? new Date() : dateObj;
 };
 
 const isSameDay = (d1, d2) => {
@@ -103,22 +104,21 @@ const AdminDashboard = () => {
       doctors: 0
     });
     const [todaysAppointments, setTodaysAppointments] = useState([]);
-    const [revenueData, setRevenueData] = useState([]);
-    const [appointmentStatusData, setAppointmentStatusData] = useState([]);
     const [loading, setLoading] = useState(true);
   
     useEffect(() => {
       const fetchDashboardData = async () => {
         try {
-          const [patientsData, appointmentsData, paymentsData, doctorsData] = await Promise.all([
+          const [patientsData, appointmentsData, paymentsData, doctorsData, schedulesData] = await Promise.all([
             getAllPatients(),
             getAllAppointments(),
             getAllPayments(),
-            getAllDoctors()
+            getAllDoctors(),
+            getAllSchedules().catch(() => [])
           ]);
   
           // Calculate Stats
-          const totalRevenue = paymentsData.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+          const totalRevenue = paymentsData.reduce((sum, p) => sum + (p.amount || 0), 0);
           
           setStats({
             patients: patientsData.length,
@@ -126,82 +126,52 @@ const AdminDashboard = () => {
             revenue: totalRevenue,
             doctors: doctorsData.length
           });
-
-          // Calculate Revenue Trend (Last 7 Days)
-          const last7Days = Array.from({ length: 7 }, (_, i) => {
-            const d = new Date();
-            d.setDate(d.getDate() - (6 - i));
-            return d;
-          });
-
-          const trendData = last7Days.map(day => {
-            const dayTotal = paymentsData
-                .filter(p => {
-                    // Try date fields: paymentDate, date, or createdAt
-                    const dateVal = p.paymentDate || p.date || p.createdAt;
-                    if (!dateVal) return false;
-                    
-                    const pDate = parseDate(dateVal);
-                    // Ensure valid date
-                    if (isNaN(pDate.getTime())) return false;
-
-                    return isSameDay(pDate, day);
-                })
-                .reduce((sum, p) => sum + Number(p.amount || 0), 0);
-
-             return {
-                name: day.toLocaleDateString('en-US', { weekday: 'short' }),
-                date: day.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-                value: dayTotal
-            };
-          });
-
-          // Calculate Appointment Status Distribution
-          const statusCounts = appointmentsData.reduce((acc, curr) => {
-              const status = (curr.status || 'Unknown').toUpperCase(); // Normalize status
-              acc[status] = (acc[status] || 0) + 1;
-              return acc;
-          }, {});
-
-          const pieData = Object.keys(statusCounts).map(status => ({
-              name: status,
-              value: statusCounts[status]
-          }));
-          setAppointmentStatusData(pieData);
-          setRevenueData(trendData);
   
-          // Filter Today's Appointments
+          // Create maps for lookup
+          const doctorMap = {};
+          doctorsData.forEach(doc => {
+            doctorMap[doc.id] = doc.name || `${doc.firstName || ''} ${doc.lastName || ''}`.trim();
+          });
+
+          const scheduleMap = {};
+          schedulesData.forEach(schedule => {
+            scheduleMap[schedule.id] = schedule.doctorId;
+          });
+  
+          // Filter Today's Appointments with proper doctor resolution
           const today = new Date();
           const todays = appointmentsData
             .filter(appt => {
-                // Correct field is appointmentTime based on AppointmentsListPage
-                const dateVal = appt.appointmentTime || appt.appointmentDate;
-                if (!dateVal) return false;
-
-                const apptDate = parseDate(dateVal);
+                const apptDate = parseDate(appt.appointmentTime || appt.appointmentDate);
                 return isSameDay(apptDate, today);
             })
-            // Sort by time?
+            // Resolve doctor name
+            .map(appt => {
+              let doctorName = 'Unknown Doctor';
+              
+              // First try to get from doctor object directly
+              if (appt.doctor && appt.doctor.name) {
+                doctorName = appt.doctor.name;
+              } else if (appt.scheduleId && scheduleMap[appt.scheduleId]) {
+                // Look up doctor from schedule
+                const doctorId = scheduleMap[appt.scheduleId];
+                doctorName = doctorMap[doctorId] || `Doctor #${doctorId}`;
+              }
+              
+              return {
+                ...appt,
+                doctorName: doctorName
+              };
+            })
+            // Sort by appointment time
             .sort((a, b) => {
-                 const dA = parseDate(a.appointmentTime || a.appointmentDate);
-                 const dB = parseDate(b.appointmentTime || b.appointmentDate);
-                 return dA - dB;
+              const timeA = parseDate(a.appointmentTime || a.appointmentDate).getTime();
+              const timeB = parseDate(b.appointmentTime || b.appointmentDate).getTime();
+              return timeA - timeB;
             })
             .slice(0, 5); // Take top 5
   
-          // Map IDs to Names for display
-          const enrichedTodays = todays.map(appt => {
-             const patient = patientsData.find(p => p.id === appt.patientId);
-             const doctor = doctorsData.find(d => d.id === appt.doctorId); // Assuming doctorId exists
-             
-             return {
-                 ...appt,
-                 patientName: patient ? patient.name : `Patient #${appt.patientId}`,
-                 doctorName: doctor ? doctor.name : appt.doctorName || `Doctor #${appt.doctorId}`
-             };
-          });
-
-          setTodaysAppointments(enrichedTodays);
+          setTodaysAppointments(todays);
         } catch (error) {
           console.error("Failed to load dashboard data", error);
         } finally {
@@ -211,87 +181,14 @@ const AdminDashboard = () => {
   
       fetchDashboardData();
     }, []);
-
-    const handleGenerateReport = () => {
-        const doc = new jsPDF();
-        
-        // Header
-        doc.setFontSize(20);
-        doc.setTextColor(40, 116, 166);
-        doc.text("Wellness Point - Daily Admin Report", 14, 22);
-        
-        doc.setFontSize(10);
-        doc.setTextColor(100);
-        doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 30);
-
-        // Stats Summary
-        autoTable(doc, {
-            startY: 40,
-            head: [['Metric', 'Value']],
-            body: [
-                ['Total Patients', stats.patients],
-                ['Total Appointments', stats.appointments],
-                ['Total Revenue', `LKR ${stats.revenue.toLocaleString()}`],
-                ['Active Doctors', stats.doctors]
-            ],
-            theme: 'grid',
-            headStyles: { fillColor: [41, 128, 185] },
-        });
-
-        // Revenue Trend (7 Days)
-        doc.text("Revenue Last 7 Days", 14, doc.lastAutoTable.finalY + 14);
-        autoTable(doc, {
-            startY: doc.lastAutoTable.finalY + 20,
-            head: [['Date', 'Amount (LKR)']],
-            body: revenueData.map(d => [d.date, d.value.toLocaleString()]),
-            theme: 'striped',
-        });
-
-        // Today's Appointments
-        doc.text("Today's Schedule", 14, doc.lastAutoTable.finalY + 14);
-        
-        const scheduleData = todaysAppointments.map(app => {
-             const dateObj = parseDate(app.appointmentTime || app.appointmentDate);
-             const timeStr = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-             return [
-                 timeStr,
-                 app.patientName,
-                 app.doctorName,
-                 app.status
-             ];
-        });
-
-        if (scheduleData.length > 0) {
-            autoTable(doc, {
-                startY: doc.lastAutoTable.finalY + 20,
-                head: [['Time', 'Patient', 'Doctor', 'Status']],
-                body: scheduleData,
-                headStyles: { fillColor: [22, 160, 133] },
-            });
-        } else {
-            doc.setFontSize(10);
-            doc.text("No appointments scheduled for today.", 14, doc.lastAutoTable.finalY + 25);
-        }
-
-        doc.save(`daily_report_${new Date().toISOString().slice(0,10)}.pdf`);
-    };
   
     if (loading) return <Spinner fullScreen />;
   
     return (
       <div className="space-y-8 max-w-7xl mx-auto pb-10">
-        <div className="flex justify-between items-end">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Admin Overview</h1>
-            <p className="text-gray-500 text-sm mt-1">System-wide performance metrics.</p>
-          </div>
-          <button 
-                onClick={handleGenerateReport}
-                className="flex items-center gap-2 px-4 py-2 bg-slate-800 text-white text-sm font-medium rounded-xl hover:bg-slate-900 transition-colors shadow-sm"
-          >
-                <FileText className="w-4 h-4" />
-                Generate Daily Report
-          </button>
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Admin Overview</h1>
+          <p className="text-gray-500 text-sm mt-1">System-wide performance metrics.</p>
         </div>
   
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -300,7 +197,7 @@ const AdminDashboard = () => {
             value={stats.patients} 
             icon={Users} 
             color="blue" 
-            // Removed hardcoded trend to reflect real data state
+            trend="12% vs last month"
           />
           <StatCard 
             title="Total Appointments" 
@@ -314,7 +211,7 @@ const AdminDashboard = () => {
             value={formatCurrency(stats.revenue)} 
             icon={Banknote} 
             color="green" 
-            // Removed hardcoded trend to reflect real data state
+            trend="8% vs last month"
           />
           <StatCard 
             title="Active Doctors" 
@@ -323,94 +220,8 @@ const AdminDashboard = () => {
             color="cyan" 
           />
         </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Revenue Analytics Chart */}
-            <div className="lg:col-span-2 bg-white rounded-[24px] border border-gray-100 shadow-sm p-8">
-                <div className="mb-8">
-                    <h2 className="text-lg font-bold text-gray-900">Revenue Analytics</h2>
-                    <p className="text-sm text-gray-500">Income trends over the last 7 days</p>
-                </div>
-                <div className="h-[300px] w-full">
-                    <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart data={revenueData}>
-                            <defs>
-                                <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.1}/>
-                                    <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
-                                </linearGradient>
-                            </defs>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
-                            <XAxis 
-                                dataKey="name" 
-                                axisLine={false} 
-                                tickLine={false} 
-                                tick={{fill: '#9ca3af', fontSize: 12}} 
-                                dy={10}
-                            />
-                            <YAxis 
-                                axisLine={false} 
-                                tickLine={false} 
-                                tick={{fill: '#9ca3af', fontSize: 12}} 
-                                tickFormatter={(value) => `${value}`}
-                            />
-                            <Tooltip 
-                                contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                                formatter={(value) => [`LKR ${value.toLocaleString()}`, 'Revenue']}
-                            />
-                            <Area 
-                                type="monotone" 
-                                dataKey="value" 
-                                stroke="#10b981" 
-                                strokeWidth={3}
-                                fillOpacity={1} 
-                                fill="url(#colorRevenue)" 
-                            />
-                        </AreaChart>
-                    </ResponsiveContainer>
-                </div>
-            </div>
-
-            {/* Appointment Status Distribution Chart */}
-            <div className="bg-white rounded-[24px] border border-gray-100 shadow-sm p-8">
-                <div className="mb-8">
-                    <h2 className="text-lg font-bold text-gray-900">Appointment Status</h2>
-                    <p className="text-sm text-gray-500">Distribution of appointment statuses</p>
-                </div>
-                <div className="h-[300px] w-full">
-                    <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                            <Pie
-                                data={appointmentStatusData}
-                                cx="50%"
-                                cy="50%"
-                                innerRadius={60}
-                                outerRadius={80}
-                                paddingAngle={5}
-                                dataKey="value"
-                            >
-                                {appointmentStatusData.map((entry, index) => {
-                                    // Custom colors based on status
-                                    let color = '#9ca3af'; // default gray
-                                    if (entry.name === 'COMPLETED') color = '#10b981'; // green
-                                    else if (entry.name === 'CANCELLED') color = '#ef4444'; // red
-                                    else if (entry.name === 'SCHEDULED' || entry.name === 'PENDING') color = '#3b82f6'; // blue
-                                    else if (entry.name === 'NO_SHOW') color = '#f59e0b'; // orange
-                                    
-                                    return <Cell key={`cell-${index}`} fill={color} />;
-                                })}
-                            </Pie>
-                            <Tooltip 
-                                formatter={(value) => [value, 'Count']}
-                                contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                            />
-                            <Legend verticalAlign="bottom" height={36}/>
-                        </PieChart>
-                    </ResponsiveContainer>
-                </div>
-            </div>
   
-            <div className="lg:col-span-3 bg-white rounded-[24px] border border-gray-100 shadow-sm p-8">
+        <div className="bg-white rounded-[24px] border border-gray-100 shadow-sm p-8">
             <div className="flex items-center justify-between mb-8">
                 <div>
                     <h2 className="text-lg font-bold text-gray-900">Today's Schedule</h2>
@@ -422,14 +233,14 @@ const AdminDashboard = () => {
             <div className="space-y-4">
                 {todaysAppointments.length > 0 ? (
                     todaysAppointments.map((appt, idx) => {
-                        const dateObj = parseDate(appt.appointmentTime || appt.appointmentDate);
+                        const dateObj = parseDate(appt.appointmentDate);
                         const timeStr = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                         return (
                             <ScheduleItem 
                                 key={appt.id || idx}
                                 time={timeStr}
-                                patient={appt.patientName}
-                                doctor={appt.doctorName}
+                                patient={appt.patientName || `Patient #${appt.patientId}`}
+                                doctor={appt.doctorName || `Doctor #${appt.doctorId}`}
                                 status={appt.status}
                             />
                         );
@@ -440,8 +251,7 @@ const AdminDashboard = () => {
             </div>
         </div>
       </div>
-    </div>
-  );
-};
+    );
+  };
 
 export default AdminDashboard;
