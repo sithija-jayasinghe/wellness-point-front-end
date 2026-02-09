@@ -18,7 +18,7 @@ import { getAllDoctors } from '../../api/doctors.api';
 import Spinner from '../../components/Spinner';
 
 // Reuse helper functions or import them if extracted. 
-// For now, I'll keep them local to avoid breaking if utils changes.
+
 const parseDate = (dateArr) => {
     if (!dateArr) return new Date();
     if (Array.isArray(dateArr)) {
