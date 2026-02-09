@@ -4,6 +4,7 @@ import { Plus, Search, Calendar, Check, X, Trash2, Eye, Edit, RefreshCw } from '
 import { getAllAppointments, cancelAppointment, completeAppointment, deleteAppointment } from '../../api/appointments.api';
 import { getAllSchedules } from '../../api/schedules.api';
 import { getAllDoctors } from '../../api/doctors.api';
+import { getAllPatients } from '../../api/patients.api';
 import PageHeader from '../../components/PageHeader';
 import Button from '../../components/Button';
 import Input from '../../components/Input';
@@ -27,6 +28,7 @@ const AppointmentsListPage = () => {
     const [appointments, setAppointments] = useState([]);
     const [schedules, setSchedules] = useState([]);
     const [doctors, setDoctors] = useState([]);
+    const [patients, setPatients] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
@@ -74,10 +76,11 @@ const AppointmentsListPage = () => {
     const fetchAppointments = async () => {
         try {
             setLoading(true);
-            const [appointmentsData, schedulesData, doctorsData] = await Promise.all([
+            const [appointmentsData, schedulesData, doctorsData, patientsData] = await Promise.all([
                 getAllAppointments(),
                 getAllSchedules().catch(() => []),
-                getAllDoctors().catch(() => [])
+                getAllDoctors().catch(() => []),
+                getAllPatients().catch(() => [])
             ]);
 
             // Removed auto-cancel logic for expired appointments per requirement.
@@ -86,6 +89,7 @@ const AppointmentsListPage = () => {
 
             setSchedules(schedulesData);
             setDoctors(doctorsData);
+            setPatients(patientsData);
             setError(null);
         } catch (err) {
             console.error('Failed to fetch appointments', err);
@@ -151,14 +155,29 @@ const AppointmentsListPage = () => {
         return '';
     };
 
+    // Helper to resolve patient name
+    const getPatientName = (apt) => {
+        if (apt.patientName) return apt.patientName;
+        
+        if (apt.patientId) {
+            const patient = patients.find(p => p.id === apt.patientId);
+            if (patient) {
+                return patient.name || patient.patientName || `${patient.firstName || ''} ${patient.lastName || ''}`.trim();
+            }
+        }
+        return `Patient #${apt.patientId}`;
+    };
+
     const filteredAppointments = appointments.filter(apt => {
         // Safe check for properties as backend response structure might vary
         const search = searchTerm.toLowerCase();
         const doctorName = getDoctorName(apt).toLowerCase();
+        const patientName = getPatientName(apt).toLowerCase();
 
         return String(apt.id).includes(search) || 
                String(apt.status).toLowerCase().includes(search) ||
                String(apt.patientId).includes(search) ||
+               patientName.includes(search) ||
                String(apt.scheduleId).includes(search) ||
                doctorName.includes(search);
     });
@@ -225,7 +244,7 @@ const AppointmentsListPage = () => {
                                 <TableHead>ID</TableHead>
                                 <TableHead>Schedule ID</TableHead>
                                 <TableHead>Doctor Name</TableHead>
-                                <TableHead>Patient ID</TableHead>
+                                <TableHead>Patient Name</TableHead>
                                 <TableHead>Date & Time</TableHead>
                                 <TableHead>Status</TableHead>
                                 <TableHead className="text-right">Actions</TableHead>
@@ -237,7 +256,7 @@ const AppointmentsListPage = () => {
                                     <td className="p-4 font-medium text-gray-900">#{apt.id}</td>
                                     <td className="p-4 text-gray-500">{apt.scheduleId}</td>
                                     <td className="p-4 text-gray-500">{getDoctorName(apt) || 'Unknown Doctor'}</td>
-                                    <td className="p-4 text-gray-500">{apt.patientId}</td>
+                                    <td className="p-4 text-gray-500">{getPatientName(apt)}</td>
                                     <td className="p-4 text-gray-500">
                                         {formatDateTime(apt.appointmentTime)}
                                     </td>

@@ -15,16 +15,20 @@ import { getAllPatients } from '../../api/patients.api';
 import { getAllAppointments } from '../../api/appointments.api';
 import { getAllPayments } from '../../api/payments.api';
 import { getAllDoctors } from '../../api/doctors.api';
+import { getAllSchedules } from '../../api/schedules.api'; // Added from friend's code
 import Spinner from '../../components/Spinner';
 
-// Reuse helper functions or import them if extracted. 
+// --- Helper Functions ---
 
-const parseDate = (dateArr) => {
-    if (!dateArr) return new Date();
-    if (Array.isArray(dateArr)) {
-        return new Date(dateArr[0], dateArr[1] - 1, dateArr[2], dateArr[3] || 0, dateArr[4] || 0);
+const parseDate = (dateInput) => {
+    if (!dateInput) return new Date();
+    // Handle Array format [yyyy, mm, dd, hh, mm] from friend's logic
+    if (Array.isArray(dateInput)) {
+        return new Date(dateInput[0], dateInput[1] - 1, dateInput[2], dateInput[3] || 0, dateInput[4] || 0);
     }
-    return new Date(dateArr);
+    // Handle String or Date Object
+    const d = new Date(dateInput);
+    return isNaN(d.getTime()) ? new Date() : d;
 };
 
 const isSameDay = (d1, d2) => {
@@ -36,6 +40,8 @@ const isSameDay = (d1, d2) => {
 const formatCurrency = (amount) => {
     return 'LKR ' + (amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
+
+// --- Components ---
 
 const StatCard = ({ title, value, icon: IconComponent, color, trend, badge }) => {
   const colorClasses = {
@@ -70,15 +76,18 @@ const StatCard = ({ title, value, icon: IconComponent, color, trend, badge }) =>
   );
 };
 
-const ScheduleItem = ({ time, patient, doctor, status }) => (
+// Merged Schedule Item (Uses Friend's detailed layout with ID)
+const ScheduleItem = ({ time, patientName, patientId, doctor, status }) => (
   <div className="flex gap-4 items-center">
     <div className="flex-shrink-0 w-16 text-center">
         <span className="text-sm font-bold text-slate-500 block">{time}</span>
     </div>
     <div className="flex-grow p-4 rounded-2xl bg-slate-50 border border-slate-100 flex justify-between items-center group hover:bg-white hover:shadow-md transition-all">
         <div>
-            <p className="text-sm font-bold text-slate-900">{patient}</p>
+            <p className="text-sm font-bold text-slate-900">{patientName}</p>
             <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-1">
+                {patientId && <span className="text-slate-400">ID: #{patientId}</span>}
+                {patientId && <span className="mx-1">•</span>}
                 <span className="font-semibold text-slate-400">Dr. {doctor}</span>
             </p>
         </div>
@@ -110,14 +119,16 @@ const AdminDashboard = () => {
     useEffect(() => {
       const fetchDashboardData = async () => {
         try {
-          const [patientsData, appointmentsData, paymentsData, doctorsData] = await Promise.all([
+          // Merged API calls: Added getAllSchedules
+          const [patientsData, appointmentsData, paymentsData, doctorsData, schedulesData] = await Promise.all([
             getAllPatients(),
             getAllAppointments(),
             getAllPayments(),
-            getAllDoctors()
+            getAllDoctors(),
+            getAllSchedules().catch(() => []) // Handle error gracefully if schedules fail
           ]);
   
-          // Calculate Stats
+          // 1. Calculate Basic Stats
           const totalRevenue = paymentsData.reduce((sum, p) => sum + Number(p.amount || 0), 0);
           
           setStats({
@@ -127,7 +138,7 @@ const AdminDashboard = () => {
             doctors: doctorsData.length
           });
 
-          // Calculate Revenue Trend (Last 7 Days)
+          // 2. Calculate Revenue Trend (Last 7 Days) - From Your Code
           const last7Days = Array.from({ length: 7 }, (_, i) => {
             const d = new Date();
             d.setDate(d.getDate() - (6 - i));
@@ -137,14 +148,10 @@ const AdminDashboard = () => {
           const trendData = last7Days.map(day => {
             const dayTotal = paymentsData
                 .filter(p => {
-                    // Try date fields: paymentDate, date, or createdAt
                     const dateVal = p.paymentDate || p.date || p.createdAt;
                     if (!dateVal) return false;
-                    
                     const pDate = parseDate(dateVal);
-                    // Ensure valid date
                     if (isNaN(pDate.getTime())) return false;
-
                     return isSameDay(pDate, day);
                 })
                 .reduce((sum, p) => sum + Number(p.amount || 0), 0);
@@ -155,10 +162,11 @@ const AdminDashboard = () => {
                 value: dayTotal
             };
           });
+          setRevenueData(trendData);
 
-          // Calculate Appointment Status Distribution
+          // 3. Calculate Appointment Status Distribution - From Your Code
           const statusCounts = appointmentsData.reduce((acc, curr) => {
-              const status = (curr.status || 'Unknown').toUpperCase(); // Normalize status
+              const status = (curr.status || 'Unknown').toUpperCase();
               acc[status] = (acc[status] || 0) + 1;
               return acc;
           }, {});
@@ -168,40 +176,64 @@ const AdminDashboard = () => {
               value: statusCounts[status]
           }));
           setAppointmentStatusData(pieData);
-          setRevenueData(trendData);
   
-          // Filter Today's Appointments
+          // 4. Resolve Today's Appointments - Using Friend's Advanced Logic
+          // Create maps for quick lookup
+          const doctorMap = {};
+          doctorsData.forEach(doc => {
+            doctorMap[doc.id] = doc.name || `${doc.firstName || ''} ${doc.lastName || ''}`.trim();
+          });
+
+          const patientMap = {};
+          patientsData.forEach(patient => {
+            patientMap[patient.id] = patient.name || patient.patientName || `${patient.firstName || ''} ${patient.lastName || ''}`.trim();
+          });
+
+          const scheduleMap = {};
+          schedulesData.forEach(schedule => {
+            scheduleMap[schedule.id] = schedule.doctorId;
+          });
+
           const today = new Date();
           const todays = appointmentsData
             .filter(appt => {
-                // Correct field is appointmentTime based on AppointmentsListPage
-                const dateVal = appt.appointmentTime || appt.appointmentDate;
-                if (!dateVal) return false;
-
-                const apptDate = parseDate(dateVal);
+                const apptDate = parseDate(appt.appointmentTime || appt.appointmentDate);
                 return isSameDay(apptDate, today);
             })
-            // Sort by time?
+            .map(appt => {
+              // Advanced resolution logic
+              let doctorName = 'Unknown Doctor';
+              if (appt.doctor && appt.doctor.name) {
+                doctorName = appt.doctor.name;
+              } else if (appt.scheduleId && scheduleMap[appt.scheduleId]) {
+                const doctorId = scheduleMap[appt.scheduleId];
+                doctorName = doctorMap[doctorId] || `Doctor #${doctorId}`;
+              } else if (appt.doctorId && doctorMap[appt.doctorId]) {
+                 doctorName = doctorMap[appt.doctorId];
+              }
+
+              let patientName = 'Unknown Patient';
+              if (appt.patientName) {
+                patientName = appt.patientName;
+              } else if (appt.patientId && patientMap[appt.patientId]) {
+                patientName = patientMap[appt.patientId];
+              }
+              
+              return {
+                ...appt,
+                doctorName: doctorName,
+                patientName: patientName
+              };
+            })
             .sort((a, b) => {
-                 const dA = parseDate(a.appointmentTime || a.appointmentDate);
-                 const dB = parseDate(b.appointmentTime || b.appointmentDate);
-                 return dA - dB;
+              const timeA = parseDate(a.appointmentTime || a.appointmentDate).getTime();
+              const timeB = parseDate(b.appointmentTime || b.appointmentDate).getTime();
+              return timeA - timeB;
             })
             .slice(0, 5); // Take top 5
   
-          // Map IDs to Names for display
-          const enrichedTodays = todays.map(appt => {
-             const patient = patientsData.find(p => p.id === appt.patientId);
-             const doctor = doctorsData.find(d => d.id === appt.doctorId); // Assuming doctorId exists
-             
-             return {
-                 ...appt,
-                 patientName: patient ? patient.name : `Patient #${appt.patientId}`,
-                 doctorName: doctor ? doctor.name : appt.doctorName || `Doctor #${appt.doctorId}`
-             };
-          });
+          setTodaysAppointments(todays);
 
-          setTodaysAppointments(enrichedTodays);
         } catch (error) {
           console.error("Failed to load dashboard data", error);
         } finally {
@@ -212,6 +244,7 @@ const AdminDashboard = () => {
       fetchDashboardData();
     }, []);
 
+    // PDF Generation Handler
     const handleGenerateReport = () => {
         const doc = new jsPDF();
         
@@ -238,7 +271,7 @@ const AdminDashboard = () => {
             headStyles: { fillColor: [41, 128, 185] },
         });
 
-        // Revenue Trend (7 Days)
+        // Revenue Trend
         doc.text("Revenue Last 7 Days", 14, doc.lastAutoTable.finalY + 14);
         autoTable(doc, {
             startY: doc.lastAutoTable.finalY + 20,
@@ -300,7 +333,6 @@ const AdminDashboard = () => {
             value={stats.patients} 
             icon={Users} 
             color="blue" 
-            // Removed hardcoded trend to reflect real data state
           />
           <StatCard 
             title="Total Appointments" 
@@ -314,7 +346,6 @@ const AdminDashboard = () => {
             value={formatCurrency(stats.revenue)} 
             icon={Banknote} 
             color="green" 
-            // Removed hardcoded trend to reflect real data state
           />
           <StatCard 
             title="Active Doctors" 
@@ -324,6 +355,7 @@ const AdminDashboard = () => {
           />
         </div>
 
+        {/* Charts Section */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Revenue Analytics Chart */}
             <div className="lg:col-span-2 bg-white rounded-[24px] border border-gray-100 shadow-sm p-8">
@@ -390,12 +422,11 @@ const AdminDashboard = () => {
                                 dataKey="value"
                             >
                                 {appointmentStatusData.map((entry, index) => {
-                                    // Custom colors based on status
-                                    let color = '#9ca3af'; // default gray
-                                    if (entry.name === 'COMPLETED') color = '#10b981'; // green
-                                    else if (entry.name === 'CANCELLED') color = '#ef4444'; // red
-                                    else if (entry.name === 'SCHEDULED' || entry.name === 'PENDING') color = '#3b82f6'; // blue
-                                    else if (entry.name === 'NO_SHOW') color = '#f59e0b'; // orange
+                                    let color = '#9ca3af'; // default
+                                    if (entry.name === 'COMPLETED') color = '#10b981';
+                                    else if (entry.name === 'CANCELLED') color = '#ef4444';
+                                    else if (entry.name === 'SCHEDULED' || entry.name === 'PENDING') color = '#3b82f6';
+                                    else if (entry.name === 'NO_SHOW') color = '#f59e0b';
                                     
                                     return <Cell key={`cell-${index}`} fill={color} />;
                                 })}
@@ -409,39 +440,41 @@ const AdminDashboard = () => {
                     </ResponsiveContainer>
                 </div>
             </div>
-  
+        
+            {/* Today's Schedule List (Spans full width at bottom) */}
             <div className="lg:col-span-3 bg-white rounded-[24px] border border-gray-100 shadow-sm p-8">
-            <div className="flex items-center justify-between mb-8">
-                <div>
-                    <h2 className="text-lg font-bold text-gray-900">Today's Schedule</h2>
-                    <p className="text-sm text-gray-500">Upcoming appointments for today</p>
+                <div className="flex items-center justify-between mb-8">
+                    <div>
+                        <h2 className="text-lg font-bold text-gray-900">Today's Schedule</h2>
+                        <p className="text-sm text-gray-500">Upcoming appointments for today</p>
+                    </div>
+                    <button onClick={() => navigate('/appointments')} className="text-sm font-semibold text-cyan-600 hover:text-cyan-700">View All</button>
                 </div>
-                <button onClick={() => navigate('/appointments')} className="text-sm font-semibold text-cyan-600 hover:text-cyan-700">View All</button>
-            </div>
-            
-            <div className="space-y-4">
-                {todaysAppointments.length > 0 ? (
-                    todaysAppointments.map((appt, idx) => {
-                        const dateObj = parseDate(appt.appointmentTime || appt.appointmentDate);
-                        const timeStr = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                        return (
-                            <ScheduleItem 
-                                key={appt.id || idx}
-                                time={timeStr}
-                                patient={appt.patientName}
-                                doctor={appt.doctorName}
-                                status={appt.status}
-                            />
-                        );
-                    })
-                ) : (
-                    <p className="text-gray-500 text-sm text-center py-8">No appointments scheduled for today.</p>
-                )}
+                
+                <div className="space-y-4">
+                    {todaysAppointments.length > 0 ? (
+                        todaysAppointments.map((appt, idx) => {
+                            const dateObj = parseDate(appt.appointmentTime || appt.appointmentDate);
+                            const timeStr = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                            return (
+                                <ScheduleItem 
+                                    key={appt.id || idx}
+                                    time={timeStr}
+                                    patientName={appt.patientName}
+                                    patientId={appt.patientId}
+                                    doctor={appt.doctorName}
+                                    status={appt.status}
+                                />
+                            );
+                        })
+                    ) : (
+                        <p className="text-gray-500 text-sm text-center py-8">No appointments scheduled for today.</p>
+                    )}
+                </div>
             </div>
         </div>
       </div>
-    </div>
-  );
+    );
 };
 
 export default AdminDashboard;
