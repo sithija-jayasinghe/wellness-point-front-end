@@ -41,15 +41,11 @@ const LoginPage = () => {
       // Uppercase first to handle mixed case 'Role_'
       const role = user.role ? user.role.toUpperCase().replace('ROLE_', '').trim() : '';
 
-      // Check for redirect path
-      const from = location.state?.from?.pathname;
-      
-      if (from) {
-          navigate(from, { replace: true });
-      } else {
-        // Redirect to root, enabling the DashboardRedirector to handle role-based routing
-        navigate('/', { replace: true });
-      }
+      // Always redirect to root (Dashboard) to ensure correct role-based routing
+      // This prevents issues where a user with Role A logs in but is redirected 
+      // to a restricted URL from a previous Role B session (stored in location.state.from)
+      navigate('/', { replace: true });
+
     } catch (error) {
       toast({
         title: 'Login Failed',
