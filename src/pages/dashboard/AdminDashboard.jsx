@@ -71,15 +71,17 @@ const StatCard = ({ title, value, icon: IconComponent, color, trend, badge }) =>
   );
 };
 
-const ScheduleItem = ({ time, patient, doctor, status }) => (
+const ScheduleItem = ({ time, patientName, patientId, doctor, status }) => (
   <div className="flex gap-4 items-center">
     <div className="flex-shrink-0 w-16 text-center">
         <span className="text-sm font-bold text-slate-500 block">{time}</span>
     </div>
     <div className="flex-grow p-4 rounded-2xl bg-slate-50 border border-slate-100 flex justify-between items-center group hover:bg-white hover:shadow-md transition-all">
         <div>
-            <p className="text-sm font-bold text-slate-900">{patient}</p>
+            <p className="text-sm font-bold text-slate-900">{patientName}</p>
             <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-1">
+                <span className="text-slate-400">Patient ID: #{patientId}</span>
+                <span className="mx-1">•</span>
                 <span className="font-semibold text-slate-400">Dr. {doctor}</span>
             </p>
         </div>
@@ -133,6 +135,11 @@ const AdminDashboard = () => {
             doctorMap[doc.id] = doc.name || `${doc.firstName || ''} ${doc.lastName || ''}`.trim();
           });
 
+          const patientMap = {};
+          patientsData.forEach(patient => {
+            patientMap[patient.id] = patient.name || patient.patientName || `${patient.firstName || ''} ${patient.lastName || ''}`.trim();
+          });
+
           const scheduleMap = {};
           schedulesData.forEach(schedule => {
             scheduleMap[schedule.id] = schedule.doctorId;
@@ -145,7 +152,7 @@ const AdminDashboard = () => {
                 const apptDate = parseDate(appt.appointmentTime || appt.appointmentDate);
                 return isSameDay(apptDate, today);
             })
-            // Resolve doctor name
+            // Resolve doctor name and patient name
             .map(appt => {
               let doctorName = 'Unknown Doctor';
               
@@ -157,10 +164,19 @@ const AdminDashboard = () => {
                 const doctorId = scheduleMap[appt.scheduleId];
                 doctorName = doctorMap[doctorId] || `Doctor #${doctorId}`;
               }
+
+              // Resolve patient name
+              let patientName = 'Unknown Patient';
+              if (appt.patientName) {
+                patientName = appt.patientName;
+              } else if (appt.patientId && patientMap[appt.patientId]) {
+                patientName = patientMap[appt.patientId];
+              }
               
               return {
                 ...appt,
-                doctorName: doctorName
+                doctorName: doctorName,
+                patientName: patientName
               };
             })
             // Sort by appointment time
@@ -239,8 +255,9 @@ const AdminDashboard = () => {
                             <ScheduleItem 
                                 key={appt.id || idx}
                                 time={timeStr}
-                                patient={appt.patientName || `Patient #${appt.patientId}`}
-                                doctor={appt.doctorName || `Doctor #${appt.doctorId}`}
+                                patientName={appt.patientName || `Patient #${appt.patientId}`}
+                                patientId={appt.patientId}
+                                doctor={appt.doctorName || 'Unknown'}
                                 status={appt.status}
                             />
                         );
