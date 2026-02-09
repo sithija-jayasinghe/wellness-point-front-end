@@ -2,12 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Users, Calendar, Banknote,  
-  TrendingUp, ArrowUpRight, Activity 
+  TrendingUp, ArrowUpRight, Activity, FileText 
 } from 'lucide-react';
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend 
 } from 'recharts';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { cn } from '../../utils';
 import { getAllPatients } from '../../api/patients.api';
 import { getAllAppointments } from '../../api/appointments.api';
@@ -209,14 +211,87 @@ const AdminDashboard = () => {
   
       fetchDashboardData();
     }, []);
+
+    const handleGenerateReport = () => {
+        const doc = new jsPDF();
+        
+        // Header
+        doc.setFontSize(20);
+        doc.setTextColor(40, 116, 166);
+        doc.text("Wellness Point - Daily Admin Report", 14, 22);
+        
+        doc.setFontSize(10);
+        doc.setTextColor(100);
+        doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 30);
+
+        // Stats Summary
+        autoTable(doc, {
+            startY: 40,
+            head: [['Metric', 'Value']],
+            body: [
+                ['Total Patients', stats.patients],
+                ['Total Appointments', stats.appointments],
+                ['Total Revenue', `LKR ${stats.revenue.toLocaleString()}`],
+                ['Active Doctors', stats.doctors]
+            ],
+            theme: 'grid',
+            headStyles: { fillColor: [41, 128, 185] },
+        });
+
+        // Revenue Trend (7 Days)
+        doc.text("Revenue Last 7 Days", 14, doc.lastAutoTable.finalY + 14);
+        autoTable(doc, {
+            startY: doc.lastAutoTable.finalY + 20,
+            head: [['Date', 'Amount (LKR)']],
+            body: revenueData.map(d => [d.date, d.value.toLocaleString()]),
+            theme: 'striped',
+        });
+
+        // Today's Appointments
+        doc.text("Today's Schedule", 14, doc.lastAutoTable.finalY + 14);
+        
+        const scheduleData = todaysAppointments.map(app => {
+             const dateObj = parseDate(app.appointmentTime || app.appointmentDate);
+             const timeStr = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+             return [
+                 timeStr,
+                 app.patientName,
+                 app.doctorName,
+                 app.status
+             ];
+        });
+
+        if (scheduleData.length > 0) {
+            autoTable(doc, {
+                startY: doc.lastAutoTable.finalY + 20,
+                head: [['Time', 'Patient', 'Doctor', 'Status']],
+                body: scheduleData,
+                headStyles: { fillColor: [22, 160, 133] },
+            });
+        } else {
+            doc.setFontSize(10);
+            doc.text("No appointments scheduled for today.", 14, doc.lastAutoTable.finalY + 25);
+        }
+
+        doc.save(`daily_report_${new Date().toISOString().slice(0,10)}.pdf`);
+    };
   
     if (loading) return <Spinner fullScreen />;
   
     return (
       <div className="space-y-8 max-w-7xl mx-auto pb-10">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Admin Overview</h1>
-          <p className="text-gray-500 text-sm mt-1">System-wide performance metrics.</p>
+        <div className="flex justify-between items-end">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Admin Overview</h1>
+            <p className="text-gray-500 text-sm mt-1">System-wide performance metrics.</p>
+          </div>
+          <button 
+                onClick={handleGenerateReport}
+                className="flex items-center gap-2 px-4 py-2 bg-slate-800 text-white text-sm font-medium rounded-xl hover:bg-slate-900 transition-colors shadow-sm"
+          >
+                <FileText className="w-4 h-4" />
+                Generate Daily Report
+          </button>
         </div>
   
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
