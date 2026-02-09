@@ -8,7 +8,7 @@ import { getAllDoctors } from '../../api/doctors.api';
 import Spinner from '../../components/Spinner';
 
 const parseDate = (dateArr) => {
-    if (!dateArr) return new Date();
+    if (!dateArr) return null; // Return null if date is missing to avoid "Current Date" default
     if (Array.isArray(dateArr)) {
         return new Date(dateArr[0], dateArr[1] - 1, dateArr[2], dateArr[3] || 0, dateArr[4] || 0);
     }
@@ -16,6 +16,7 @@ const parseDate = (dateArr) => {
 };
 
 const isSameDay = (d1, d2) => {
+    if (!d1 || !d2) return false;
     return d1.getFullYear() === d2.getFullYear() &&
            d1.getMonth() === d2.getMonth() &&
            d1.getDate() === d2.getDate();
@@ -76,12 +77,21 @@ const DoctorDashboard = () => {
                     const filteredAppts = allAppts.filter(a => doctorScheduleIds.includes(a.scheduleId));
                     
                     // Sort by date (descending for history, but we want upcoming/recent)
-                    const sorted = [...filteredAppts].sort((a, b) => parseDate(b.appointmentDate) - parseDate(a.appointmentDate));
+                    // Use appointmentTime or appointmentDate
+                    const sorted = [...filteredAppts].sort((a, b) => {
+                         const dateA = parseDate(a.appointmentTime || a.appointmentDate) || new Date(0);
+                         const dateB = parseDate(b.appointmentTime || b.appointmentDate) || new Date(0);
+                         return dateB - dateA;
+                    });
 
                     const now = new Date();
                     const todayAppts = filteredAppts
-                        .filter(a => isSameDay(parseDate(a.appointmentDate), now))
-                        .sort((a, b) => parseDate(a.appointmentDate) - parseDate(b.appointmentDate));
+                        .filter(a => isSameDay(parseDate(a.appointmentTime || a.appointmentDate), now))
+                        .sort((a, b) => {
+                             const dateA = parseDate(a.appointmentTime || a.appointmentDate) || new Date(0);
+                             const dateB = parseDate(b.appointmentTime || b.appointmentDate) || new Date(0);
+                             return dateA - dateB;
+                        });
 
                     const todayCount = todayAppts.length;
                     const completedCount = filteredAppts.filter(a => a.status === 'COMPLETED').length;
@@ -95,15 +105,22 @@ const DoctorDashboard = () => {
                     let next = null;
 
                     for (const appt of todayAppts) {
-                        const start = parseDate(appt.appointmentDate);
+                        const start = parseDate(appt.appointmentTime || appt.appointmentDate);
+                        if (!start) continue;
+
                         const end = new Date(start.getTime() + DURATION_MS);
                         
+                        // Check if current time is within appointment slot
                         if (now >= start && now <= end && appt.status !== 'CANCELLED' && appt.status !== 'COMPLETED') {
                             curr = appt;
                         } else if (start > now && appt.status !== 'CANCELLED' && !next) {
                             next = appt;
                         }
                     }
+
+                    // Force correct status display for past appointments in 'today' list
+                    // If an appointment is past (end < now) and still 'BOOKED', it might be missed or completed but not updated status
+                    // For the UI, we just display what's in DB, but ensure sorting is correct.
 
                     setTodayAppointments(todayAppts);
                     setCurrentAppointment(curr);
@@ -147,7 +164,7 @@ const DoctorDashboard = () => {
                             <p className="text-blue-700">ID: #{currentAppointment.patientId}</p>
                             <div className="mt-4 flex gap-2">
                                 <span className="px-3 py-1 bg-white text-blue-700 text-sm rounded-full shadow-sm font-semibold">
-                                    {parseDate(currentAppointment.appointmentDate).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                    {parseDate(currentAppointment.appointmentTime || currentAppointment.appointmentDate)?.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                                 </span>
                                 <span className="px-3 py-1 bg-green-100 text-green-700 text-sm rounded-full shadow-sm font-semibold">In Progress</span>
                             </div>
@@ -169,7 +186,7 @@ const DoctorDashboard = () => {
                             <p className="text-gray-600">ID: #{nextAppointment.patientId}</p>
                             <div className="mt-4">
                                 <span className="px-3 py-1 bg-orange-100 text-orange-700 text-sm rounded-full font-semibold">
-                                    Upcoming: {parseDate(nextAppointment.appointmentDate).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                    Upcoming: {parseDate(nextAppointment.appointmentTime || nextAppointment.appointmentDate)?.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                                 </span>
                             </div>
                         </div>
@@ -228,7 +245,7 @@ const DoctorDashboard = () => {
                 
                 <div className="space-y-3">
                     {todayAppointments.length > 0 ? todayAppointments.map((appt, i) => {
-                        const date = parseDate(appt.appointmentDate);
+                        const date = parseDate(appt.appointmentTime || appt.appointmentDate) || new Date();
                         const isPast = date < new Date();
                         const isCompleted = appt.status === 'COMPLETED';
                         
