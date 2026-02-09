@@ -24,6 +24,9 @@ const isSameDay = (d1, d2) => {
 const DoctorDashboard = () => {
     const { user } = useAuth();
     const [myAppointments, setMyAppointments] = useState([]);
+    const [todayAppointments, setTodayAppointments] = useState([]);
+    const [currentAppointment, setCurrentAppointment] = useState(null);
+    const [nextAppointment, setNextAppointment] = useState(null);
     const [loading, setLoading] = useState(true);
     const [stats, setStats] = useState({
         today: 0,
@@ -75,9 +78,36 @@ const DoctorDashboard = () => {
                     // Sort by date (descending for history, but we want upcoming/recent)
                     const sorted = [...filteredAppts].sort((a, b) => parseDate(b.appointmentDate) - parseDate(a.appointmentDate));
 
-                    const todayCount = filteredAppts.filter(a => isSameDay(parseDate(a.appointmentDate), new Date())).length;
+                    const now = new Date();
+                    const todayAppts = filteredAppts
+                        .filter(a => isSameDay(parseDate(a.appointmentDate), now))
+                        .sort((a, b) => parseDate(a.appointmentDate) - parseDate(b.appointmentDate));
+
+                    const todayCount = todayAppts.length;
                     const completedCount = filteredAppts.filter(a => a.status === 'COMPLETED').length;
                     const pendingCount = filteredAppts.filter(a => a.status === 'PENDING').length;
+
+                    // Determine Current and Next Appointment
+                    // Assuming 30 min duration for simplicity if not in data
+                    const DURATION_MS = 30 * 60 * 1000; 
+                    
+                    let curr = null;
+                    let next = null;
+
+                    for (const appt of todayAppts) {
+                        const start = parseDate(appt.appointmentDate);
+                        const end = new Date(start.getTime() + DURATION_MS);
+                        
+                        if (now >= start && now <= end && appt.status !== 'CANCELLED' && appt.status !== 'COMPLETED') {
+                            curr = appt;
+                        } else if (start > now && appt.status !== 'CANCELLED' && !next) {
+                            next = appt;
+                        }
+                    }
+
+                    setTodayAppointments(todayAppts);
+                    setCurrentAppointment(curr);
+                    setNextAppointment(next);
 
                     setStats({
                         today: todayCount,
@@ -102,6 +132,54 @@ const DoctorDashboard = () => {
     return (
         <div className="space-y-6">
             <h1 className="text-2xl font-bold text-gray-900">Doctor Dashboard</h1>
+            
+            {/* Quick Actions / Highlights */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Current Patient Card */}
+                <div className={`p-6 rounded-xl shadow-sm border ${currentAppointment ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-200'}`}>
+                    <h3 className="text-lg font-bold mb-2 flex items-center gap-2">
+                        <CheckCircle className={`h-5 w-5 ${currentAppointment ? 'text-blue-600' : 'text-gray-400'}`} />
+                        Current Consultation
+                    </h3>
+                    {currentAppointment ? (
+                        <div>
+                            <p className="text-2xl font-bold text-blue-900">{patientsMap[currentAppointment.patientId] || 'Unknown Patient'}</p>
+                            <p className="text-blue-700">ID: #{currentAppointment.patientId}</p>
+                            <div className="mt-4 flex gap-2">
+                                <span className="px-3 py-1 bg-white text-blue-700 text-sm rounded-full shadow-sm font-semibold">
+                                    {parseDate(currentAppointment.appointmentDate).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                </span>
+                                <span className="px-3 py-1 bg-green-100 text-green-700 text-sm rounded-full shadow-sm font-semibold">In Progress</span>
+                            </div>
+                        </div>
+                    ) : (
+                        <p className="text-gray-500">No consultation in progress currently.</p>
+                    )}
+                </div>
+
+                {/* Next Patient Card */}
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                    <h3 className="text-lg font-bold mb-2 flex items-center gap-2">
+                        <Clock className="h-5 w-5 text-orange-500" />
+                        Next Patient
+                    </h3>
+                    {nextAppointment ? (
+                        <div>
+                            <p className="text-2xl font-bold text-gray-900">{patientsMap[nextAppointment.patientId] || 'Unknown Patient'}</p>
+                            <p className="text-gray-600">ID: #{nextAppointment.patientId}</p>
+                            <div className="mt-4">
+                                <span className="px-3 py-1 bg-orange-100 text-orange-700 text-sm rounded-full font-semibold">
+                                    Upcoming: {parseDate(nextAppointment.appointmentDate).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                </span>
+                            </div>
+                        </div>
+                    ) : (
+                        <p className="text-gray-500">No more appointments scheduled for today.</p>
+                    )}
+                </div>
+            </div>
+
+            {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
                     <div className="flex items-center gap-4">
@@ -138,18 +216,59 @@ const DoctorDashboard = () => {
                 </div>
             </div>
             
+            {/* Today's Schedule Section */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                <h2 className="text-lg font-bold mb-4">Upcoming Appointments</h2>
+                <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-lg font-bold flex items-center gap-2">
+                        <Calendar className="h-5 w-5 text-blue-600" />
+                        Today's Schedule
+                    </h2>
+                    <span className="text-sm text-gray-500">{new Date().toLocaleDateString(undefined, {weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'})}</span>
+                </div>
+                
                 <div className="space-y-3">
-                    {myAppointments.length > 0 ? myAppointments.map((appt, i) => (
-                         <div key={i} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                            <div>
-                                <p className="font-semibold">{patientsMap[appt.patientId] || 'Unknown Patient'} (ID: #{appt.patientId})</p>
-                                <p className="text-sm text-gray-500">{parseDate(appt.appointmentDate).toLocaleString()}</p>
+                    {todayAppointments.length > 0 ? todayAppointments.map((appt, i) => {
+                        const date = parseDate(appt.appointmentDate);
+                        const isPast = date < new Date();
+                        const isCompleted = appt.status === 'COMPLETED';
+                        
+                        return (
+                         <div key={i} className={`flex justify-between items-center p-4 rounded-xl border transition-all ${
+                             isCompleted ? 'bg-gray-50 border-gray-100 opacity-60' : 
+                             isPast ? 'bg-orange-50/50 border-orange-100' : 
+                             'bg-white border-gray-200 hover:shadow-md hover:border-blue-200'
+                         }`}>
+                            <div className="flex items-center gap-4">
+                                <div className={`p-3 rounded-lg font-bold text-center min-w-[80px] ${
+                                    isPast ? 'bg-gray-100 text-gray-500' : 'bg-blue-50 text-blue-700'
+                                }`}>
+                                    <div className="text-lg">{date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
+                                </div>
+                                <div>
+                                    <p className="font-bold text-gray-900 text-lg">{patientsMap[appt.patientId] || 'Unknown Patient'}</p>
+                                    <p className="text-sm text-gray-500 font-medium">Patient ID: #{appt.patientId}</p>
+                                </div>
                             </div>
-                            <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded font-bold">{appt.status}</span>
+                            
+                            <div className="flex items-center gap-3">
+                                <span className={`px-3 py-1 text-xs rounded-full font-bold uppercase tracking-wide ${
+                                    appt.status === 'COMPLETED' ? 'bg-green-100 text-green-700' :
+                                    appt.status === 'PENDING' ? 'bg-orange-100 text-orange-700' :
+                                    appt.status === 'CANCELLED' ? 'bg-red-100 text-red-700' :
+                                    'bg-gray-100 text-gray-700'
+                                }`}>
+                                    {appt.status}
+                                </span>
+                                {/* Action Buttons could go here */}
+                            </div>
                          </div>
-                    )) : <p>No appointments found.</p>}
+                    )}) : (
+                        <div className="text-center py-10 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+                            <Calendar className="h-10 w-10 text-gray-300 mx-auto mb-2" />
+                            <p className="text-gray-500 font-medium">No appointments scheduled for today</p>
+                            <p className="text-sm text-gray-400">Enjoy your free time!</p>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
