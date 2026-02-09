@@ -4,7 +4,10 @@ import {
   Users, Calendar, Banknote,  
   TrendingUp, ArrowUpRight, Activity 
 } from 'lucide-react';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { 
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  PieChart, Pie, Cell, Legend 
+} from 'recharts';
 import { cn } from '../../utils';
 import { getAllPatients } from '../../api/patients.api';
 import { getAllAppointments } from '../../api/appointments.api';
@@ -99,6 +102,7 @@ const AdminDashboard = () => {
     });
     const [todaysAppointments, setTodaysAppointments] = useState([]);
     const [revenueData, setRevenueData] = useState([]);
+    const [appointmentStatusData, setAppointmentStatusData] = useState([]);
     const [loading, setLoading] = useState(true);
   
     useEffect(() => {
@@ -149,6 +153,19 @@ const AdminDashboard = () => {
                 value: dayTotal
             };
           });
+
+          // Calculate Appointment Status Distribution
+          const statusCounts = appointmentsData.reduce((acc, curr) => {
+              const status = (curr.status || 'Unknown').toUpperCase(); // Normalize status
+              acc[status] = (acc[status] || 0) + 1;
+              return acc;
+          }, {});
+
+          const pieData = Object.keys(statusCounts).map(status => ({
+              name: status,
+              value: statusCounts[status]
+          }));
+          setAppointmentStatusData(pieData);
           setRevenueData(trendData);
   
           // Filter Today's Appointments
@@ -278,8 +295,47 @@ const AdminDashboard = () => {
                     </ResponsiveContainer>
                 </div>
             </div>
-  
+
+            {/* Appointment Status Distribution Chart */}
             <div className="bg-white rounded-[24px] border border-gray-100 shadow-sm p-8">
+                <div className="mb-8">
+                    <h2 className="text-lg font-bold text-gray-900">Appointment Status</h2>
+                    <p className="text-sm text-gray-500">Distribution of appointment statuses</p>
+                </div>
+                <div className="h-[300px] w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                            <Pie
+                                data={appointmentStatusData}
+                                cx="50%"
+                                cy="50%"
+                                innerRadius={60}
+                                outerRadius={80}
+                                paddingAngle={5}
+                                dataKey="value"
+                            >
+                                {appointmentStatusData.map((entry, index) => {
+                                    // Custom colors based on status
+                                    let color = '#9ca3af'; // default gray
+                                    if (entry.name === 'COMPLETED') color = '#10b981'; // green
+                                    else if (entry.name === 'CANCELLED') color = '#ef4444'; // red
+                                    else if (entry.name === 'SCHEDULED' || entry.name === 'PENDING') color = '#3b82f6'; // blue
+                                    else if (entry.name === 'NO_SHOW') color = '#f59e0b'; // orange
+                                    
+                                    return <Cell key={`cell-${index}`} fill={color} />;
+                                })}
+                            </Pie>
+                            <Tooltip 
+                                formatter={(value) => [value, 'Count']}
+                                contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                            />
+                            <Legend verticalAlign="bottom" height={36}/>
+                        </PieChart>
+                    </ResponsiveContainer>
+                </div>
+            </div>
+  
+            <div className="lg:col-span-3 bg-white rounded-[24px] border border-gray-100 shadow-sm p-8">
             <div className="flex items-center justify-between mb-8">
                 <div>
                     <h2 className="text-lg font-bold text-gray-900">Today's Schedule</h2>
