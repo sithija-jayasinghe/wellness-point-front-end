@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, CheckCircle, Clock } from 'lucide-react';
+import { Calendar, CheckCircle, Clock, Activity } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { getAllAppointments } from '../../api/appointments.api';
 import { getAllSchedules } from '../../api/schedules.api';
 import { getAllPatients } from '../../api/patients.api';
 import { getAllDoctors } from '../../api/doctors.api';
 import Spinner from '../../components/Spinner';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
 const parseDate = (dateArr) => {
     if (!dateArr) return null; // Return null if date is missing to avoid "Current Date" default
@@ -28,6 +29,8 @@ const DoctorDashboard = () => {
     const [todayAppointments, setTodayAppointments] = useState([]);
     const [currentAppointment, setCurrentAppointment] = useState(null);
     const [nextAppointment, setNextAppointment] = useState(null);
+    const [weeklyData, setWeeklyData] = useState([]);
+    const [statusData, setStatusData] = useState([]);
     const [loading, setLoading] = useState(true);
     const [stats, setStats] = useState({
         today: 0,
@@ -118,10 +121,6 @@ const DoctorDashboard = () => {
                         }
                     }
 
-                    // Force correct status display for past appointments in 'today' list
-                    // If an appointment is past (end < now) and still 'BOOKED', it might be missed or completed but not updated status
-                    // For the UI, we just display what's in DB, but ensure sorting is correct.
-
                     setTodayAppointments(todayAppts);
                     setCurrentAppointment(curr);
                     setNextAppointment(next);
@@ -131,6 +130,36 @@ const DoctorDashboard = () => {
                         completed: completedCount,
                         pending: pendingCount
                     });
+
+                    // --- Chart Data Preparation ---
+                    
+                    // 1. Weekly Appointments
+                    const last7Days = Array.from({ length: 7 }, (_, i) => {
+                        const d = new Date();
+                        d.setDate(d.getDate() - (6 - i));
+                        return d;
+                    });
+
+                    const weeklyChartData = last7Days.map(day => {
+                        const dayStr = day.toLocaleDateString('en-US', { weekday: 'short' });
+                        const count = filteredAppts.filter(a => isSameDay(parseDate(a.appointmentTime || a.appointmentDate), day)).length;
+                        return { name: dayStr, appointments: count };
+                    });
+                    setWeeklyData(weeklyChartData);
+
+                    // 2. Status Breakdown
+                    const statusCounts = {
+                        COMPLETED: filteredAppts.filter(a => a.status === 'COMPLETED').length,
+                        PENDING: filteredAppts.filter(a => a.status === 'PENDING').length,
+                        CANCELLED: filteredAppts.filter(a => a.status === 'CANCELLED').length
+                    };
+
+                    const statusChartData = [
+                        { name: 'Completed', value: statusCounts.COMPLETED, color: '#22c55e' }, // green-500
+                        { name: 'Pending', value: statusCounts.PENDING, color: '#f97316' },   // orange-500
+                        { name: 'Cancelled', value: statusCounts.CANCELLED, color: '#ef4444' } // red-500
+                    ].filter(item => item.value > 0); // Only show non-zero in pie
+                    setStatusData(statusChartData);
 
                     setMyAppointments(sorted.slice(0, 5));
                 }
@@ -229,6 +258,68 @@ const DoctorDashboard = () => {
                             <p className="text-sm text-gray-500">Pending</p>
                             <h3 className="text-2xl font-bold">{stats.pending}</h3>
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Statistics & Analytics Section */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Weekly Appointments Chart */}
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                    <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                        <Activity className="h-5 w-5 text-blue-600" />
+                        Weekly Appointments
+                    </h3>
+                    <div className="h-64 w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={weeklyData}>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                                <XAxis dataKey="name" axisLine={false} tickLine={false} />
+                                <YAxis axisLine={false} tickLine={false} allowDecimals={false} />
+                                <RechartsTooltip 
+                                    cursor={{ fill: '#f3f4f6' }}
+                                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                                />
+                                <Bar dataKey="appointments" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={30} />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
+
+                {/* Appointment Status Breakdown */}
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                    <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                        <CheckCircle className="h-5 w-5 text-green-600" />
+                        Status Breakdown
+                    </h3>
+                    <div className="h-64 w-full flex items-center justify-center">
+                        {statusData.length > 0 ? (
+                            <ResponsiveContainer width="100%" height="100%">
+                                <PieChart>
+                                    <Pie
+                                        data={statusData}
+                                        cx="50%"
+                                        cy="50%"
+                                        innerRadius={60}
+                                        outerRadius={80}
+                                        paddingAngle={5}
+                                        dataKey="value"
+                                    >
+                                        {statusData.map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={entry.color} />
+                                        ))}
+                                    </Pie>
+                                    <RechartsTooltip 
+                                        contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                                    />
+                                    <Legend verticalAlign="bottom" height={36} />
+                                </PieChart>
+                            </ResponsiveContainer>
+                        ) : (
+                            <div className="text-center text-gray-400">
+                                <p>No data available</p>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
