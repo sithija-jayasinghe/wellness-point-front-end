@@ -240,6 +240,7 @@ const DoctorDashboard = () => {
                                 </Button>
                             </div>
                         </div>
+                        
                     ) : (
                         <p className="text-gray-500">No consultation in progress currently.</p>
                     )}
