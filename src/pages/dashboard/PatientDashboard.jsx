@@ -14,6 +14,7 @@ import {
 import { getAllPatients } from '../../api/patients.api';
 import { getAllAppointments } from '../../api/appointments.api';
 import { getAllPrescriptions } from '../../api/prescriptions.api';
+import { getAllConsultations } from '../../api/consultations.api';
 import { getAllDoctors } from '../../api/doctors.api';
 import { getAllPayments } from '../../api/payments.api';
 import Spinner from '../../components/Spinner';
@@ -93,10 +94,11 @@ const PatientDashboard = () => {
             setCurrentPatient(patient);
 
             // 3. Fetch Patient Specific Data
-            const [allAppts, allPrescs, allPayments] = await Promise.all([
+            const [allAppts, allPrescs, allPayments, allConsultations] = await Promise.all([
                 getAllAppointments(),
                 getAllPrescriptions(),
-                getAllPayments()
+                getAllPayments(),
+                getAllConsultations()
             ]);
 
             // Filter Appointments
@@ -109,8 +111,31 @@ const PatientDashboard = () => {
                 });
 
             // Filter Prescriptions
+            // Need to join Prescription -> Consultation -> Appointment -> Patient/Doctor
             const myPrescs = allPrescs
-                .filter(p => p.patientId === patient.id)
+                .map(pres => {
+                    // Find related consultation
+                    const consult = allConsultations.find(c => 
+                        c.consultationId === pres.consultationId || c.id === pres.consultationId
+                    );
+                    if (!consult) return null;
+
+                    // Find related appointment
+                    const appt = allAppts.find(a => a.id === consult.appointmentId);
+                    if (!appt) return null;
+
+                    // Filter by current patient
+                    if (appt.patientId !== patient.id) return null;
+
+                    return {
+                        ...pres,
+                        id: pres.prescriptionId || pres.id, // Ensure ID is available
+                        doctorId: appt.doctorId, // Link doctor from appointment
+                        medication: pres.prescriptionItems?.map(i => i.medicineName).join(', ') || 'Prescription',
+                        date: pres.issuedDate
+                    };
+                })
+                .filter(p => p !== null) // Remove non-matches
                 .sort((a,b) => b.id - a.id); // Simple sort by ID assuming newer ID = newer
 
             // Filter Payments
