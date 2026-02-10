@@ -38,7 +38,7 @@ const PatientFormPage = () => {
                 // Fetch clinics for dropdown
                 const clinicsData = await getAllClinics();
                 setClinics(clinicsData);
-                
+
                 if (isEditMode) {
                     await fetchPatient();
                 } else {
@@ -65,7 +65,7 @@ const PatientFormPage = () => {
                 setInitialLoading(false);
             }
         };
-        
+
         loadData();
     }, [isEditMode, id]);
 
@@ -79,7 +79,7 @@ const PatientFormPage = () => {
             }
 
             const patient = patients.find(p => p.id === parseInt(id) || p.id === id);
-            
+
             if (patient) {
                 let formattedDob = '';
                 if (patient.dob) {
@@ -110,7 +110,7 @@ const PatientFormPage = () => {
         } catch (err) {
             console.error('Failed to fetch patient details', err);
             // Error handling handled by outer catch
-            throw err; 
+            throw err;
         }
     };
 
@@ -129,19 +129,19 @@ const PatientFormPage = () => {
         if (!formData.nic.trim()) newErrors.nic = 'NIC is required';
         if (!formData.phone.trim()) newErrors.phone = 'Phone number is required';
         if (!formData.dob) newErrors.dob = 'Date of birth is required';
-        
+
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        
+
         if (!validate()) return;
 
         try {
             setLoading(true);
-            
+
             // Convert Array of IDs to Array of Objects for Backend
             const payload = {
                 ...formData,
@@ -159,12 +159,11 @@ const PatientFormPage = () => {
                 });
                 navigate('/patients');
             } else {
+                // 1. Create Patient
                 await createPatient(payload);
-                toast({
-                    title: 'Success',
-                    description: 'Patient registered successfully',
-                    variant: 'success'
-                });
+
+                toast({ title: 'Success', description: 'Patient created successfully', variant: 'success' });
+
                 // Clear form to allow adding another entry
                 setFormData({
                     name: '',
@@ -200,13 +199,13 @@ const PatientFormPage = () => {
     return (
         <div className="space-y-6 max-w-2xl mx-auto">
             <PageHeader
-                title={isEditMode ? 'Edit Patient' : 'Register Patient'} 
+                title={isEditMode ? 'Edit Patient' : 'Register Patient'}
                 description={isEditMode ? 'Update patient details.' : 'Register a new patient.'}
                 actions={
-                    <Button 
-                        variant="outline" 
-                        className="border-blue-500 text-blue-600 hover:bg-blue-50 hover:text-blue-700" 
-                        onClick={() => navigate('/patients')} 
+                    <Button
+                        variant="outline"
+                        className="border-blue-500 text-blue-600 hover:bg-blue-50 hover:text-blue-700"
+                        onClick={() => navigate('/patients')}
                         icon={ArrowLeft}
                     >
                         Back to List
@@ -292,7 +291,7 @@ const PatientFormPage = () => {
                             </div>
                         </div>
 
-                         <div>
+                        <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">
                                 Assign Clinics
                             </label>
@@ -311,15 +310,15 @@ const PatientFormPage = () => {
                     </div>
 
                     <div className="pt-4 flex items-center justify-end gap-3 border-t border-gray-100">
-                        <Button 
-                            type="button" 
-                            variant="ghost" 
+                        <Button
+                            type="button"
+                            variant="ghost"
                             onClick={() => navigate('/patients')}
                         >
                             Cancel
                         </Button>
-                        <Button 
-                            type="submit" 
+                        <Button
+                            type="submit"
                             disabled={loading}
                             icon={loading ? undefined : Save}
                         >

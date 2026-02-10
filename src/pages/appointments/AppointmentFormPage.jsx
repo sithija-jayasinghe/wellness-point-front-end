@@ -4,11 +4,11 @@ import { ArrowLeft, Save, Plus } from 'lucide-react';
 import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
 import { bookAppointment, updateAppointment, getAppointmentById } from '../../api/appointments.api';
-import { getAllPatients, createPatient } from '../../api/patients.api';
+import { getAllPatients, createPatient, updatePatient } from '../../api/patients.api';
 import { getAllDoctors } from '../../api/doctors.api';
 import { getAllClinics } from '../../api/clinics.api';
-import { getUser } from '../../auth/authStorage'; 
-import { getAllSchedules } from '../../api/schedules.api'; 
+import { getUser } from '../../auth/authStorage';
+import { getAllSchedules } from '../../api/schedules.api';
 import PageHeader from '../../components/PageHeader';
 import Button from '../../components/Button';
 import Input from '../../components/Input';
@@ -28,9 +28,9 @@ const AppointmentFormPage = () => {
         scheduleId: '',
         patientId: '',
         appointmentTime: null,
-        status: 'BOOKED' 
+        status: 'BOOKED'
     });
-    
+
     // New Patient Modal State
     const [isPatientModalOpen, setIsPatientModalOpen] = useState(false);
     const [newPatientData, setNewPatientData] = useState({
@@ -59,9 +59,9 @@ const AppointmentFormPage = () => {
 
     useEffect(() => {
         if (!initialLoading && isEditMode) {
-             fetchAppointment();
+            fetchAppointment();
         } else if (!initialLoading && !isEditMode) {
-             setFormData({
+            setFormData({
                 scheduleId: '',
                 patientId: '',
                 appointmentTime: null,
@@ -74,9 +74,9 @@ const AppointmentFormPage = () => {
         try {
             const [patientsData, schedulesData, doctorsData, clinicsData] = await Promise.all([
                 getAllPatients(),
-                getAllSchedules().catch(() => []), 
+                getAllSchedules().catch(() => []),
                 getAllDoctors().catch(() => []),
-                getAllClinics().catch(() => []) 
+                getAllClinics().catch(() => [])
             ]);
             setPatients(patientsData || []);
             setSchedules(schedulesData || []);
@@ -92,14 +92,14 @@ const AppointmentFormPage = () => {
     const fetchAppointment = async () => {
         try {
             const appointment = await getAppointmentById(id);
-            
+
             if (appointment) {
                 // Helper to safely parse date from Array or String
                 const parseDate = (d) => {
                     if (!d) return null;
                     if (Array.isArray(d)) {
-                         const [year, month, day, hour, minute, second = 0] = d;
-                         return new Date(year, month - 1, day, hour, minute, second);
+                        const [year, month, day, hour, minute, second = 0] = d;
+                        return new Date(year, month - 1, day, hour, minute, second);
                     }
                     return new Date(d);
                 };
@@ -160,7 +160,7 @@ const AppointmentFormPage = () => {
 
         try {
             setCreatingPatient(true);
-            
+
             // Format data for backend
             const payload = {
                 ...newPatientData,
@@ -170,26 +170,30 @@ const AppointmentFormPage = () => {
                     : []
             };
 
-            const created = await createPatient(payload);
-            
+            // 1. Create Patient (Backend now handles User creation automatically)
+            await createPatient(payload);
+
+            toast({ title: 'Success', description: 'Patient created successfully', variant: 'success' });
+
             // Refresh patient list
             const patientsList = await getAllPatients();
             setPatients(patientsList);
-            
-            // Select the new patient
-            setFormData(prev => ({ ...prev, patientId: created.id }));
-            
-            toast({ title: 'Success', description: 'Patient created successfully', variant: 'success' });
-            
+
+            // Select the new patient (Find by NIC to auto-select)
+            const createdPatient = patientsList.find(p => p.nic === payload.nic);
+            if (createdPatient) {
+                setFormData(prev => ({ ...prev, patientId: createdPatient.id }));
+            }
+
             // Reset and close
             setNewPatientData({ name: '', nic: '', phone: '', dob: '', gender: 'MALE', clinics: [] });
             setIsPatientModalOpen(false);
         } catch (err) {
             console.error('Failed to create patient', err);
-            toast({ 
-                title: 'Error', 
-                description: err.response?.data?.message || 'Failed to create patient', 
-                variant: 'destructive' 
+            toast({
+                title: 'Error',
+                description: err.response?.data?.message || 'Failed to create patient',
+                variant: 'destructive'
             });
         } finally {
             setCreatingPatient(false);
@@ -201,7 +205,7 @@ const AppointmentFormPage = () => {
         if (!formData.scheduleId) newErrors.scheduleId = 'Schedule is required';
         if (!formData.patientId) newErrors.patientId = 'Patient is required';
         if (!formData.appointmentTime) newErrors.appointmentTime = 'Date & Time is required';
-        
+
         // Backend Validation: @Future check
         if (formData.appointmentTime) {
             const selectedDate = formData.appointmentTime;
@@ -221,12 +225,12 @@ const AppointmentFormPage = () => {
 
         try {
             setLoading(true);
-            
+
             // Format Time properly: Appending ':00' to match standard LocalDatetime format
             const formatTime = (date) => {
-                 if (!date) return null;
-                 const pad = (n) => String(n).padStart(2, '0');
-                 return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:00`;
+                if (!date) return null;
+                const pad = (n) => String(n).padStart(2, '0');
+                return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:00`;
             }
 
             const formattedTime = formatTime(formData.appointmentTime);
@@ -243,7 +247,7 @@ const AppointmentFormPage = () => {
                 appointmentTime: formattedTime,
                 status: formData.status ? formData.status.toUpperCase() : 'BOOKED'
             };
-            
+
             // Note: DTO doesn't have an ID field in RequestBody usually, but if needed for update
             if (isEditMode) {
                 payload.id = parseInt(id);
@@ -263,16 +267,16 @@ const AppointmentFormPage = () => {
             }
         } catch (err) {
             console.error('Failed to save appointment', err);
-            
+
             let description = err.response?.data?.message || 'Failed to save appointment';
             const user = getUser();
-            
+
             if (err.response?.status === 403) {
-                 description = `Access Denied (403). Your role: ${user?.role || 'Unknown'}. Check backend permissions.`;
+                description = `Access Denied (403). Your role: ${user?.role || 'Unknown'}. Check backend permissions.`;
             }
-            
+
             if (err.response?.data?.errors && Array.isArray(err.response.data.errors)) {
-                 const validationMessages = err.response.data.errors
+                const validationMessages = err.response.data.errors
                     .map(e => e.defaultMessage || e.message)
                     .filter(Boolean);
                 if (validationMessages.length > 0) {
@@ -293,7 +297,7 @@ const AppointmentFormPage = () => {
     const activeSchedules = schedules.filter(s => {
         // If editing and this schedule is selected, keep it visible
         if (isEditMode && String(s.id) === String(formData.scheduleId)) return true;
-        
+
         let endDate;
         if (Array.isArray(s.endDateTime)) {
             const [year, month, day, hour, minute] = s.endDateTime;
@@ -301,7 +305,7 @@ const AppointmentFormPage = () => {
         } else {
             endDate = new Date(s.endDateTime);
         }
-        
+
         // Return true if schedule ends in the future
         return endDate > new Date();
     });
@@ -313,13 +317,13 @@ const AppointmentFormPage = () => {
     return (
         <div className="space-y-6 max-w-2xl mx-auto">
             <PageHeader
-                title={isEditMode ? 'Edit Appointment' : 'Book Appointment'} 
+                title={isEditMode ? 'Edit Appointment' : 'Book Appointment'}
                 description={isEditMode ? 'Update appointment details.' : 'Schedule a new appointment.'}
                 actions={
-                    <Button 
-                        variant="outline" 
-                        className="border-blue-500 text-blue-600 hover:bg-blue-50 hover:text-blue-700" 
-                        onClick={() => navigate('/appointments')} 
+                    <Button
+                        variant="outline"
+                        className="border-blue-500 text-blue-600 hover:bg-blue-50 hover:text-blue-700"
+                        onClick={() => navigate('/appointments')}
                         icon={ArrowLeft}
                     >
                         Back to List
@@ -375,7 +379,7 @@ const AppointmentFormPage = () => {
                                 {activeSchedules.map(s => {
                                     const doctor = doctors.find(d => d.id === s.doctorId);
                                     const doctorName = doctor ? doctor.name : `Doctor ID: ${s.doctorId || 'N/A'}`;
-                                    
+
                                     // Helper to format date consistent with backend response
                                     const formatDateTime = (dt) => {
                                         if (!dt) return '';
@@ -387,9 +391,9 @@ const AppointmentFormPage = () => {
                                         } else {
                                             dateObj = new Date(dt);
                                         }
-                                        
+
                                         if (isNaN(dateObj.getTime())) return '';
-                                        
+
                                         return dateObj.toLocaleString([], {
                                             year: 'numeric',
                                             month: 'short',
@@ -410,7 +414,7 @@ const AppointmentFormPage = () => {
                                     );
                                 })}
                             </Select>
-                             {activeSchedules.length === 0 && <p className="text-xs text-gray-400 mt-1">No active schedules found.</p>}
+                            {activeSchedules.length === 0 && <p className="text-xs text-gray-400 mt-1">No active schedules found.</p>}
                             {errors.scheduleId && <p className="mt-1 text-sm text-red-500">{errors.scheduleId}</p>}
                         </div>
 
@@ -446,8 +450,8 @@ const AppointmentFormPage = () => {
                                 >
                                     {/* Updated to match Backend Enums: [BOOKED, CANCELLED, COMPLETED] */}
                                     <option value="BOOKED">Booked</option>
-                                    <option 
-                                        value="COMPLETED" 
+                                    <option
+                                        value="COMPLETED"
                                         disabled={formData.appointmentTime && new Date(formData.appointmentTime) > new Date()}
                                         title={formData.appointmentTime && new Date(formData.appointmentTime) > new Date() ? "Cannot complete future appointments" : ""}
                                     >
@@ -460,15 +464,15 @@ const AppointmentFormPage = () => {
                     </div>
 
                     <div className="pt-4 flex items-center justify-end gap-3 border-t border-gray-100">
-                        <Button 
-                            type="button" 
-                            variant="ghost" 
+                        <Button
+                            type="button"
+                            variant="ghost"
                             onClick={() => navigate('/appointments')}
                         >
                             Cancel
                         </Button>
-                        <Button 
-                            type="submit" 
+                        <Button
+                            type="submit"
                             disabled={loading}
                             icon={loading ? undefined : Save}
                         >
@@ -581,10 +585,10 @@ const AppointmentFormPage = () => {
                             </div>
                         </div>
                         <div className="bg-gray-50 px-6 py-4 flex flex-row-reverse gap-2 rounded-b-xl">
-                            <Button 
-                                onClick={handleSubmitNewPatient} 
+                            <Button
+                                onClick={handleSubmitNewPatient}
                                 disabled={creatingPatient}
-                                icon={creatingPatient && Spinner}
+                                icon={creatingPatient ? Spinner : undefined}
                             >
                                 {creatingPatient ? 'Creating...' : 'Create Patient'}
                             </Button>
