@@ -213,12 +213,8 @@ const ReceptionistDashboard = () => {
                                         <p className="text-xs text-gray-500">Dr. {getDoctorName(appt)}</p>
                                     </div>
                                 </div>
-                                {appt.status === 'CHECKED_IN' ? (
+                                {appt.status === 'CHECKED_IN' && (
                                     <span className="text-xs bg-green-100 text-green-800 px-3 py-1.5 rounded-md font-medium">Checked In</span>
-                                ) : (
-                                    <button className="text-xs bg-cyan-50 text-cyan-700 px-3 py-1.5 rounded-md font-medium hover:bg-cyan-100 border border-cyan-200">
-                                        Check In
-                                    </button>
                                 )}
                             </div>
                         ))
