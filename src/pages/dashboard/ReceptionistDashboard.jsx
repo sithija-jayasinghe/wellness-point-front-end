@@ -3,11 +3,17 @@ import { useNavigate } from 'react-router-dom';
 import { Users, Calendar, Phone, Clock, DollarSign, CreditCard } from 'lucide-react';
 import { getAllAppointments } from '../../api/appointments.api';
 import { getAllPayments } from '../../api/payments.api';
+import { getAllSchedules } from '../../api/schedules.api';
+import { getAllDoctors } from '../../api/doctors.api';
+import { getAllPatients } from '../../api/patients.api';
 import Spinner from '../../components/Spinner';
 
 const ReceptionistDashboard = () => {
     const navigate = useNavigate();
     const [appointments, setAppointments] = useState([]);
+    const [schedules, setSchedules] = useState([]);
+    const [doctors, setDoctors] = useState([]);
+    const [patients, setPatients] = useState([]);
     const [financials, setFinancials] = useState({ collected: 0, pending: 0 });
     const [stats, setStats] = useState({ scheduled: 0, checkedIn: 0, inquiries: 0 });
     const [loading, setLoading] = useState(true);
@@ -28,11 +34,18 @@ const ReceptionistDashboard = () => {
     useEffect(() => {
         const loadData = async () => {
             try {
-                const [appointmentsData, paymentsData] = await Promise.all([
+                const [appointmentsData, paymentsData, schedulesData, doctorsData, patientsData] = await Promise.all([
                     getAllAppointments(),
-                    getAllPayments()
+                    getAllPayments(),
+                    getAllSchedules().catch(() => []),
+                    getAllDoctors().catch(() => []),
+                    getAllPatients().catch(() => [])
                 ]);
                 
+                setSchedules(schedulesData);
+                setDoctors(doctorsData);
+                setPatients(patientsData);
+
                 const today = new Date();
                 const isSameDay = (d1, d2) => 
                     d1 && d2 &&
@@ -87,6 +100,34 @@ const ReceptionistDashboard = () => {
     const formatTime = (dateData) => {
         const dateObj = getAppointmentDateObj(dateData);
         return dateObj ? dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'N/A';
+    };
+
+    // Helper to resolve doctor name
+    const getDoctorName = (apt) => {
+        if (apt.doctorName) return apt.doctorName;
+        if (apt.doctor && apt.doctor.name) return apt.doctor.name;
+        
+        if (apt.scheduleId) {
+            const schedule = schedules.find(s => s.id === apt.scheduleId);
+            if (schedule && schedule.doctorId) {
+                const doctor = doctors.find(d => d.id === schedule.doctorId);
+                if (doctor) return doctor.name;
+            }
+        }
+        return `Dr. #${apt.doctorId || 'Unknown'}`;
+    };
+
+    // Helper to resolve patient name
+    const getPatientName = (apt) => {
+        if (apt.patientName) return apt.patientName;
+        
+        if (apt.patientId) {
+            const patient = patients.find(p => p.id === apt.patientId);
+            if (patient) {
+                return patient.name || patient.patientName || `${patient.firstName || ''} ${patient.lastName || ''}`.trim();
+            }
+        }
+        return `Patient #${apt.patientId}`;
     };
 
     if (loading) return <Spinner fullScreen />;
@@ -168,8 +209,8 @@ const ReceptionistDashboard = () => {
                                         {formatTime(appt.appointmentTime)}
                                     </span>
                                     <div>
-                                        <p className="font-medium text-gray-900">{appt.patientName || `Patient #${appt.patientId}`}</p>
-                                        <p className="text-xs text-gray-500">Dr. {appt.doctorName || `Doctor #${appt.doctorId}`}</p>
+                                        <p className="font-medium text-gray-900">{getPatientName(appt)}</p>
+                                        <p className="text-xs text-gray-500">Dr. {getDoctorName(appt)}</p>
                                     </div>
                                 </div>
                                 {appt.status === 'CHECKED_IN' ? (
