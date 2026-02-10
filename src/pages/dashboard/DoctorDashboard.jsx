@@ -163,7 +163,7 @@ const DoctorDashboard = () => {
                     { name: 'Completed', value: statusCounts.COMPLETED, color: '#22c55e' }, // green-500
                     { name: 'Pending', value: statusCounts.PENDING, color: '#f97316' },   // orange-500
                     { name: 'Cancelled', value: statusCounts.CANCELLED, color: '#ef4444' } // red-500
-                ].filter(item => item.value > 0); // Only show non-zero in pie
+                ].filter(item => item.value > 0); 
                 setStatusData(statusChartData);
 
                 setMyAppointments(sorted.slice(0, 5));

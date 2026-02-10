@@ -148,6 +148,7 @@ const AppRoutes = () => {
         </Route>
         <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'RECEPTIONIST', 'STAFF']}><Outlet /></ProtectedRoute>}>
              <Route path="/payments/new" element={<PaymentFormPage />} />
+             <Route path="/payments/:id/edit" element={<PaymentFormPage />} />
              <Route path="/refunds" element={<RefundsListPage />} />
              <Route path="/refunds/new" element={<RefundFormPage />} />
         </Route>
