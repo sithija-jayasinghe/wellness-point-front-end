@@ -16,6 +16,7 @@ import {
 } from '../../components/Table';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import { useToast } from '../../components/useToast';
+import { useAuth } from '../../context/AuthContext';
 import Spinner from '../../components/Spinner';
 import EmptyState from '../../components/EmptyState';
 import ErrorState from '../../components/ErrorState';
@@ -23,6 +24,8 @@ import ErrorState from '../../components/ErrorState';
 const PaymentsListPage = () => {
     const navigate = useNavigate();
     const { toast } = useToast();
+    const { user } = useAuth();
+    const isPatient = user?.role === 'PATIENT';
 
     const [payments, setPayments] = useState([]);
     const [appointments, setAppointments] = useState([]);
@@ -102,7 +105,18 @@ const PaymentsListPage = () => {
         return dateObj.toLocaleDateString();
     };
 
+    // If patient, find their patient record by matching user.id to patient.userId
+    const currentPatientId = isPatient
+        ? patients.find(p => p.userId === user?.id)?.id
+        : null;
+
     const filteredPayments = payments.filter(p => {
+        // For patients, only show their own payments
+        if (isPatient && currentPatientId) {
+            const appointment = appointments.find(a => a.id === p.appointmentId);
+            if (!appointment || appointment.patientId !== currentPatientId) return false;
+        }
+
         const search = searchTerm.toLowerCase();
         const patientName = getPatientName(p).toLowerCase();
         
@@ -176,7 +190,7 @@ const PaymentsListPage = () => {
                                 <TableHead>Amount</TableHead>
                                 <TableHead>Date</TableHead>
                                 <TableHead>Status</TableHead>
-                                <TableHead className="text-right">Actions</TableHead>
+                                {!isPatient && <TableHead className="text-right">Actions</TableHead>}
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -198,28 +212,30 @@ const PaymentsListPage = () => {
                                             {p.status}
                                         </span>
                                     </td>
-                                    <td className="p-4 text-right">
-                                        <div className="flex items-center justify-end gap-2">
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() => navigate(`/payments/${p.paymentId}/edit`)}
-                                                className="h-8 w-8 p-0 text-gray-500 hover:text-blue-600"
-                                                title="Edit"
-                                            >
-                                                <Edit className="h-4 w-4" />
-                                            </Button>
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() => setDeleteId(p.paymentId)}
-                                                className="h-8 w-8 p-0 text-gray-500 hover:text-red-600"
-                                                title="Delete"
-                                            >
-                                                <Trash2 className="h-4 w-4" />
-                                            </Button>
-                                        </div>
-                                    </td>
+                                    {!isPatient && (
+                                        <td className="p-4 text-right">
+                                            <div className="flex items-center justify-end gap-2">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => navigate(`/payments/${p.paymentId}/edit`)}
+                                                    className="h-8 w-8 p-0 text-gray-500 hover:text-blue-600"
+                                                    title="Edit"
+                                                >
+                                                    <Edit className="h-4 w-4" />
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => setDeleteId(p.paymentId)}
+                                                    className="h-8 w-8 p-0 text-gray-500 hover:text-red-600"
+                                                    title="Delete"
+                                                >
+                                                    <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                            </div>
+                                        </td>
+                                    )}
                                 </TableRow>
                             ))}
                         </TableBody>

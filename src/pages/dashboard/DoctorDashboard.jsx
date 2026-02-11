@@ -191,11 +191,11 @@ const DoctorDashboard = () => {
     };
 
     const handleStartConsultation = (appt) => {
-        navigate('/consultations/new', { state: { appointment: appt } });
+        navigate(`/appointments/${appt.id}`);
     };
 
     const handleWritePrescription = (appt) => {
-        navigate('/prescriptions/new', { state: { appointment: appt } });
+        navigate(`/appointments/${appt.id}`);
     };
 
     const handleViewHistory = (patientId) => {

@@ -19,10 +19,13 @@ import { useToast } from '../../components/useToast';
 import Spinner from '../../components/Spinner';
 import EmptyState from '../../components/EmptyState';
 import ErrorState from '../../components/ErrorState';
+import { useAuth } from '../../context/AuthContext';
 
 const SchedulesListPage = () => {
     const navigate = useNavigate();
     const { toast } = useToast();
+    const { user } = useAuth();
+    const isDoctor = user?.role === 'DOCTOR';
     
     const [schedules, setSchedules] = useState([]);
     const [doctors, setDoctors] = useState({});
@@ -33,6 +36,7 @@ const SchedulesListPage = () => {
     
     const [deleteId, setDeleteId] = useState(null);
     const [deleting, setDeleting] = useState(false);
+    const [currentDoctorId, setCurrentDoctorId] = useState(null);
 
     useEffect(() => {
         fetchData();
@@ -57,6 +61,23 @@ const SchedulesListPage = () => {
             const clinicsMap = {};
             clinicsData.forEach(c => clinicsMap[c.id] = c.name);
             setClinics(clinicsMap);
+
+            // If doctor, find their doctor record and store the doctor ID
+            if (isDoctor) {
+                const currentUserId = user.id || user.userId;
+                const currentDoctor = doctorsData.find(d => {
+                    const docUserId = d.user?.id || d.user?.userId;
+                    if (currentUserId && docUserId) {
+                        return String(currentUserId) === String(docUserId);
+                    }
+                    return (d.name && d.name === user.username) ||
+                           (d.username && d.username === user.username) ||
+                           (d.email && d.email === user.email);
+                });
+                if (currentDoctor) {
+                    setCurrentDoctorId(currentDoctor.id);
+                }
+            }
             
             setError(null);
         } catch (err) {
@@ -93,6 +114,11 @@ const SchedulesListPage = () => {
     };
 
     const filteredSchedules = schedules.filter(schedule => {
+        // For doctors, only show their own schedules
+        if (isDoctor && currentDoctorId && schedule.doctorId !== currentDoctorId) {
+            return false;
+        }
+
         const doctorName = doctors[schedule.doctorId]?.toLowerCase() || '';
         const clinicName = clinics[schedule.clinicId]?.toLowerCase() || '';
         const search = searchTerm.toLowerCase();
@@ -130,12 +156,14 @@ const SchedulesListPage = () => {
     return (
         <div className="space-y-6">
             <PageHeader 
-                title="Doctor Schedules" 
-                description="Manage doctor availability and clinic schedules."
+                title={isDoctor ? 'My Schedules' : 'Doctor Schedules'}
+                description={isDoctor ? 'View your upcoming schedules.' : 'Manage doctor availability and clinic schedules.'}
                 actions={
-                    <Button onClick={() => navigate('/schedules/new')} icon={Plus}>
-                        Add Schedule
-                    </Button>
+                    !isDoctor && (
+                        <Button onClick={() => navigate('/schedules/new')} icon={Plus}>
+                            Add Schedule
+                        </Button>
+                    )
                 }
             />
 
@@ -174,7 +202,7 @@ const SchedulesListPage = () => {
                                 <TableHead>Start Time</TableHead>
                                 <TableHead>End Time</TableHead>
                                 <TableHead>Max Patients</TableHead>
-                                <TableHead className="text-right">Actions</TableHead>
+                                {!isDoctor && <TableHead className="text-right">Actions</TableHead>}
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -185,28 +213,30 @@ const SchedulesListPage = () => {
                                     <td className="p-4 text-gray-500">{formatDateTime(schedule.startDateTime)}</td>
                                     <td className="p-4 text-gray-500">{formatDateTime(schedule.endDateTime)}</td>
                                     <td className="p-4 text-gray-500">{schedule.maxPatients}</td>
-                                    <td className="p-4 text-right">
-                                        <div className="flex items-center justify-end gap-2">
-                                            <Button 
-                                                variant="ghost" 
-                                                size="sm"
-                                                onClick={() => navigate(`/schedules/${schedule.id}/edit`)}
-                                                className="h-8 w-8 p-0 text-gray-500 hover:text-blue-600"
-                                                title="Edit"
-                                            >
-                                                <Edit className="h-4 w-4" />
-                                            </Button>
-                                            <Button 
-                                                variant="ghost" 
-                                                size="sm"
-                                                onClick={() => setDeleteId(schedule.id)}
-                                                className="h-8 w-8 p-0 text-gray-500 hover:text-red-600"
-                                                title="Delete"
-                                            >
-                                                <Trash2 className="h-4 w-4" />
-                                            </Button>
-                                        </div>
-                                    </td>
+                                    {!isDoctor && (
+                                        <td className="p-4 text-right">
+                                            <div className="flex items-center justify-end gap-2">
+                                                <Button 
+                                                    variant="ghost" 
+                                                    size="sm"
+                                                    onClick={() => navigate(`/schedules/${schedule.id}/edit`)}
+                                                    className="h-8 w-8 p-0 text-gray-500 hover:text-blue-600"
+                                                    title="Edit"
+                                                >
+                                                    <Edit className="h-4 w-4" />
+                                                </Button>
+                                                <Button 
+                                                    variant="ghost" 
+                                                    size="sm"
+                                                    onClick={() => setDeleteId(schedule.id)}
+                                                    className="h-8 w-8 p-0 text-gray-500 hover:text-red-600"
+                                                    title="Delete"
+                                                >
+                                                    <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                            </div>
+                                        </td>
+                                    )}
                                 </TableRow>
                             ))}
                         </TableBody>
