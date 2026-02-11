@@ -9,6 +9,7 @@ import { getAllDoctors } from '../../api/doctors.api';
 import { getAllClinics } from '../../api/clinics.api';
 import { getUser } from '../../auth/authStorage';
 import { getAllSchedules } from '../../api/schedules.api';
+import { useAuth } from '../../context/AuthContext';
 import PageHeader from '../../components/PageHeader';
 import Button from '../../components/Button';
 import Input from '../../components/Input';
@@ -22,6 +23,8 @@ const AppointmentFormPage = () => {
     const { id } = useParams();
     const isEditMode = !!id;
     const { toast } = useToast();
+    const { user } = useAuth();
+    const isPatient = user?.role === 'PATIENT';
 
     // Default status changed to UPPERCASE 'BOOKED' to match Backend Enum (BOOKED, CANCELLED, COMPLETED)
     const [formData, setFormData] = useState({
@@ -94,6 +97,33 @@ const AppointmentFormPage = () => {
             const appointment = await getAppointmentById(id);
 
             if (appointment) {
+                // 24-hour edit guard for patients based on schedule start time
+                if (isPatient && appointment.scheduleId) {
+                    const schedule = schedules.find(s => s.id === appointment.scheduleId);
+                    const startData = schedule?.startDateTime;
+                    let scheduleStart = null;
+                    if (startData) {
+                        if (Array.isArray(startData)) {
+                            const [year, month, day, hour, minute, second = 0] = startData;
+                            scheduleStart = new Date(year, month - 1, day, hour, minute, second);
+                        } else {
+                            scheduleStart = new Date(startData);
+                        }
+                    }
+                    if (scheduleStart && !isNaN(scheduleStart.getTime())) {
+                        const hoursUntilStart = (scheduleStart - new Date()) / (1000 * 60 * 60);
+                        if (hoursUntilStart <= 24) {
+                            toast({
+                                title: 'Edit Unavailable',
+                                description: 'The editing time for this appointment has expired. Appointments can only be edited up to 24 hours before the scheduled start time.',
+                                variant: 'destructive'
+                            });
+                            navigate('/appointments');
+                            return;
+                        }
+                    }
+                }
+
                 // Helper to safely parse date from Array or String
                 const parseDate = (d) => {
                     if (!d) return null;
