@@ -22,10 +22,13 @@ import { useToast } from '../../components/useToast';
 import Spinner from '../../components/Spinner';
 import EmptyState from '../../components/EmptyState';
 import ErrorState from '../../components/ErrorState';
+import { useAuth } from '../../context/AuthContext';
 
 const PrescriptionsListPage = () => {
     const navigate = useNavigate();
     const { toast } = useToast();
+    const { user } = useAuth();
+    const isPatient = user?.role === 'PATIENT';
 
     const [prescriptions, setPrescriptions] = useState([]);
     const [consultations, setConsultations] = useState([]);
@@ -64,7 +67,42 @@ const PrescriptionsListPage = () => {
                 getAllPatients()
             ]);
 
-            setPrescriptions(prescriptionsData);
+            // If logged-in user is a patient, filter prescriptions to only theirs
+            if (isPatient) {
+                const currentPatient = patientsData.find(p =>
+                    (p.userId && p.userId === user?.id) ||
+                    (p.email && p.email === user?.email) ||
+                    (p.name && user?.name && p.name.toLowerCase() === user.name.toLowerCase())
+                );
+
+                if (currentPatient) {
+                    const matchId = (a, b) => a && b && String(a) === String(b);
+
+                    // Find appointment IDs belonging to this patient
+                    const patientAppointmentIds = appointmentsData
+                        .filter(a => matchId(a.patientId, currentPatient.id))
+                        .map(a => a.id);
+
+                    // Find consultation IDs linked to those appointments
+                    const patientConsultationIds = consultationsData
+                        .filter(c => {
+                            const apptId = c.appointmentId || c.appointment?.id;
+                            return patientAppointmentIds.some(id => matchId(id, apptId));
+                        })
+                        .map(c => c.consultationId || c.id);
+
+                    // Filter prescriptions to only those linked to the patient's consultations
+                    setPrescriptions(prescriptionsData.filter(p => {
+                        const consultId = p.consultationId || p.consultation?.id || p.consultation?.consultationId;
+                        return patientConsultationIds.some(id => matchId(id, consultId));
+                    }));
+                } else {
+                    setPrescriptions([]);
+                }
+            } else {
+                setPrescriptions(prescriptionsData);
+            }
+
             setConsultations(consultationsData);
             setAppointments(appointmentsData);
             setSchedules(schedulesData);
