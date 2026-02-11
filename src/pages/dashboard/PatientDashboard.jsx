@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { 
-    Calendar, 
-    FileText, 
-    CreditCard, 
-    Activity, 
-    Clock, 
+import {
+    Calendar,
+    FileText,
+    CreditCard,
+    Activity,
+    Clock,
     ChevronRight,
     PlusCircle,
     User,
@@ -17,6 +17,7 @@ import { getAllPrescriptions } from '../../api/prescriptions.api';
 import { getAllConsultations } from '../../api/consultations.api';
 import { getAllDoctors } from '../../api/doctors.api';
 import { getAllPayments } from '../../api/payments.api';
+import { getAllSchedules } from '../../api/schedules.api';
 import Spinner from '../../components/Spinner';
 import Button from '../../components/Button';
 import { useNavigate } from 'react-router-dom';
@@ -24,7 +25,7 @@ import { useNavigate } from 'react-router-dom';
 const PatientDashboard = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
-    
+
     // State
     const [loading, setLoading] = useState(true);
     const [currentPatient, setCurrentPatient] = useState(null);
@@ -32,7 +33,8 @@ const PatientDashboard = () => {
     const [prescriptions, setPrescriptions] = useState([]);
     const [payments, setPayments] = useState([]);
     const [doctorsMap, setDoctorsMap] = useState({});
-    
+    const [schedulesMap, setSchedulesMap] = useState({});
+
     // Helper to parse date array [yyyy, mm, dd, hh, mm]
     const parseDate = (dateArr) => {
         if (!dateArr) return null;
@@ -46,11 +48,11 @@ const PatientDashboard = () => {
     const formatDate = (dateArr) => {
         const date = parseDate(dateArr);
         if (!date) return 'N/A';
-        return date.toLocaleDateString('en-US', { 
-            weekday: 'short', 
-            year: 'numeric', 
-            month: 'short', 
-            day: 'numeric' 
+        return date.toLocaleDateString('en-US', {
+            weekday: 'short',
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
         });
     };
 
@@ -63,24 +65,32 @@ const PatientDashboard = () => {
     const fetchData = useCallback(async () => {
         try {
             setLoading(true);
-            
+
             // 1. Fetch reference data
-            const [usersDoctors, usersPatients] = await Promise.all([
+            const [usersDoctors, usersPatients, allSchedules] = await Promise.all([
                 getAllDoctors(),
-                getAllPatients()
+                getAllPatients(),
+                getAllSchedules()
             ]);
 
-            // Create Doctor Map
+            // Create Doctor Map with fallback to firstName/lastName
             const docMap = {};
             usersDoctors.forEach(doc => {
-                docMap[doc.id] = doc.name;
+                docMap[doc.id] = doc.name || `${doc.firstName || ''} ${doc.lastName || ''}`.trim() || `Doctor #${doc.id}`;
             });
             setDoctorsMap(docMap);
 
+            // Create Schedule Map (scheduleId -> doctorId)
+            const schedMap = {};
+            allSchedules.forEach(schedule => {
+                schedMap[schedule.id] = schedule.doctorId;
+            });
+            setSchedulesMap(schedMap);
+
             // 2. Identify Current Patient
             // Try matching by linked user ID first, then email, then name
-            const patient = usersPatients.find(p => 
-                (p.userId && p.userId === user?.id) || 
+            const patient = usersPatients.find(p =>
+                (p.userId && p.userId === user?.id) ||
                 (p.email && p.email === user?.email) ||
                 (p.name && user?.name && p.name.toLowerCase() === user.name.toLowerCase())
             );
@@ -105,38 +115,67 @@ const PatientDashboard = () => {
             const myAppts = allAppts
                 .filter(a => a.patientId === patient.id)
                 .sort((a, b) => { // Sort descending (newest first)
-                     const dateA = parseDate(a.appointmentTime || a.appointmentDate) || new Date(0);
-                     const dateB = parseDate(b.appointmentTime || b.appointmentDate) || new Date(0);
-                     return dateB - dateA;
+                    const dateA = parseDate(a.appointmentTime || a.appointmentDate) || new Date(0);
+                    const dateB = parseDate(b.appointmentTime || b.appointmentDate) || new Date(0);
+                    return dateB - dateA;
                 });
 
+            // Helper for robust ID matching (handles string/number mismatch)
+            const matchId = (a, b) => a && b && String(a) === String(b);
+
             // Filter Prescriptions
-            // Need to join Prescription -> Consultation -> Appointment -> Patient/Doctor
             const myPrescs = allPrescs
+                .filter(pres => pres.patientId === patient.id)
                 .map(pres => {
-                    // Find related consultation
-                    const consult = allConsultations.find(c => 
-                        c.consultationId === pres.consultationId || c.id === pres.consultationId
-                    );
-                    if (!consult) return null;
+                    // Resolve doctor name through the chain:
+                    // prescription -> consultation -> appointment -> schedule -> doctor
+                    let resolvedDoctorName = 'Unknown';
 
-                    // Find related appointment
-                    const appt = allAppts.find(a => a.id === consult.appointmentId);
-                    if (!appt) return null;
-
-                    // Filter by current patient
-                    if (appt.patientId !== patient.id) return null;
+                    if (pres.doctorName) {
+                        resolvedDoctorName = pres.doctorName;
+                    } else if (pres.doctor && pres.doctor.name) {
+                        resolvedDoctorName = pres.doctor.name;
+                    } else if (pres.doctorId && docMap[pres.doctorId]) {
+                        resolvedDoctorName = docMap[pres.doctorId];
+                    } else {
+                        // Walk the chain: prescription -> consultation -> appointment -> schedule -> doctor
+                        try {
+                            const consultId = pres.consultationId || pres.consultation?.id || pres.consultation?.consultationId;
+                            if (consultId) {
+                                const consultation = allConsultations.find(c => matchId(c.consultationId, consultId) || matchId(c.id, consultId));
+                                if (consultation) {
+                                    const apptId = consultation.appointmentId || consultation.appointment?.id;
+                                    const appointment = apptId ? allAppts.find(a => matchId(a.id, apptId)) : null;
+                                    if (appointment) {
+                                        // Try doctor directly from appointment
+                                        if (appointment.doctor?.name) {
+                                            resolvedDoctorName = appointment.doctor.name;
+                                        } else if (appointment.doctorId && docMap[appointment.doctorId]) {
+                                            resolvedDoctorName = docMap[appointment.doctorId];
+                                        } else {
+                                            // Try via schedule
+                                            const schedId = appointment.scheduleId || appointment.schedule?.id;
+                                            if (schedId && schedMap[schedId] && docMap[schedMap[schedId]]) {
+                                                resolvedDoctorName = docMap[schedMap[schedId]];
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        } catch (e) {
+                            console.error('Error resolving doctor for prescription:', e);
+                        }
+                    }
 
                     return {
                         ...pres,
-                        id: pres.prescriptionId || pres.id, // Ensure ID is available
-                        doctorId: appt.doctorId, // Link doctor from appointment
+                        id: pres.prescriptionId || pres.id,
                         medication: pres.prescriptionItems?.map(i => i.medicineName).join(', ') || 'Prescription',
-                        date: pres.issuedDate
+                        date: pres.issuedDate,
+                        doctorName: resolvedDoctorName
                     };
                 })
-                .filter(p => p !== null) // Remove non-matches
-                .sort((a,b) => b.id - a.id); // Simple sort by ID assuming newer ID = newer
+                .sort((a, b) => b.id - a.id);
 
             // Filter Payments
             const myPayments = allPayments.filter(p => p.patientId === patient.id);
@@ -162,7 +201,7 @@ const PatientDashboard = () => {
 
     // Derived State for UI
     const now = new Date();
-    
+
     // Filter strictly for future appointments
     const upcomingAppointments = appointments
         .filter(a => {
@@ -176,7 +215,7 @@ const PatientDashboard = () => {
         });
 
     const nextAppointment = upcomingAppointments[0];
-    
+
     const pastAppointments = appointments.filter(a => {
         const d = parseDate(a.appointmentTime || a.appointmentDate);
         return d && d <= now;
@@ -192,14 +231,14 @@ const PatientDashboard = () => {
                 <div className="flex flex-col md:flex-row justify-between items-center gap-4">
                     <div>
                         <h1 className="text-3xl font-bold mb-2">
-                             Welcome back, {currentPatient?.name || user?.name} 👋
+                            Welcome back, {currentPatient?.name || user?.name} 👋
                         </h1>
                         <p className="text-teal-100 text-lg">
                             Track your health, manage appointments, and view your history.
                         </p>
                     </div>
-                    <Button 
-                        variant="primary" 
+                    <Button
+                        variant="primary"
                         className="bg-white text-teal-700 hover:bg-teal-50 border-none shadow-md"
                         onClick={() => navigate('/appointments/new')}
                     >
@@ -220,7 +259,7 @@ const PatientDashboard = () => {
                         <p className="text-xl font-bold text-gray-800">{upcomingAppointments.length} Appointments</p>
                     </div>
                 </div>
-                
+
                 <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center space-x-4">
                     <div className="p-3 bg-blue-100 rounded-lg">
                         <Pill className="w-6 h-6 text-blue-600" />
@@ -232,7 +271,7 @@ const PatientDashboard = () => {
                 </div>
 
                 <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center space-x-4">
-                     <div className="p-3 bg-orange-100 rounded-lg">
+                    <div className="p-3 bg-orange-100 rounded-lg">
                         <CreditCard className="w-6 h-6 text-orange-600" />
                     </div>
                     <div>
@@ -241,8 +280,8 @@ const PatientDashboard = () => {
                     </div>
                 </div>
 
-                 <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center space-x-4">
-                     <div className="p-3 bg-green-100 rounded-lg">
+                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center space-x-4">
+                    <div className="p-3 bg-green-100 rounded-lg">
                         <Activity className="w-6 h-6 text-green-600" />
                     </div>
                     <div>
@@ -254,10 +293,10 @@ const PatientDashboard = () => {
 
             {/* Main Content Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                
+
                 {/* Left Column (2/3 width) */}
                 <div className="lg:col-span-2 space-y-6">
-                    
+
                     {/* Next Appointment Card */}
                     <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
                         <div className="p-6 border-b border-gray-100 flex justify-between items-center">
@@ -266,7 +305,7 @@ const PatientDashboard = () => {
                                 Next Appointment
                             </h2>
                         </div>
-                        
+
                         <div className="p-6">
                             {nextAppointment ? (
                                 <div className="flex flex-col md:flex-row gap-6 items-start md:items-center bg-teal-50 rounded-xl p-6 border border-teal-100">
@@ -280,7 +319,7 @@ const PatientDashboard = () => {
                                             </span>
                                         </div>
                                         <h3 className="text-xl font-bold text-gray-900 mb-1">
-                                            Dr. {doctorsMap[nextAppointment.doctorId] || 'Unknown Doctor'}
+                                            Dr. {nextAppointment.doctor?.name || doctorsMap[nextAppointment.doctorId] || (nextAppointment.scheduleId && schedulesMap[nextAppointment.scheduleId] && doctorsMap[schedulesMap[nextAppointment.scheduleId]]) || 'Unknown Doctor'}
                                         </h3>
                                         <div className="flex flex-wrap gap-4 mt-3">
                                             <div className="flex items-center text-gray-600">
@@ -314,7 +353,7 @@ const PatientDashboard = () => {
 
                     {/* Recent History Table */}
                     <div className="bg-white rounded-xl shadow-sm border border-gray-100">
-                         <div className="p-6 border-b border-gray-100 flex justify-between items-center">
+                        <div className="p-6 border-b border-gray-100 flex justify-between items-center">
                             <h2 className="font-bold text-lg text-gray-900">Recent Visits</h2>
                             <Button variant="ghost" size="sm" onClick={() => navigate('/appointments')}>
                                 View All <ChevronRight className="w-4 h-4 ml-1" />
@@ -337,19 +376,18 @@ const PatientDashboard = () => {
                                                 {formatDate(appt.appointmentTime || appt.appointmentDate)}
                                             </td>
                                             <td className="px-6 py-4 text-gray-600">
-                                                Dr. {doctorsMap[appt.doctorId] || appt.doctorId}
+                                                Dr. {appt.doctor?.name || doctorsMap[appt.doctorId] || (appt.scheduleId && schedulesMap[appt.scheduleId] && doctorsMap[schedulesMap[appt.scheduleId]]) || 'Unknown'}
                                             </td>
                                             <td className="px-6 py-4">
-                                                <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                                                    appt.status === 'COMPLETED' ? 'bg-green-100 text-green-700' :
+                                                <span className={`px-2 py-1 rounded-full text-xs font-semibold ${appt.status === 'COMPLETED' ? 'bg-green-100 text-green-700' :
                                                     appt.status === 'CANCELLED' ? 'bg-red-100 text-red-700' :
-                                                    'bg-gray-100 text-gray-700'
-                                                }`}>
+                                                        'bg-gray-100 text-gray-700'
+                                                    }`}>
                                                     {appt.status}
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4">
-                                                <button 
+                                                <button
                                                     onClick={() => navigate(`/appointments/${appt.id}`)}
                                                     className="text-teal-600 hover:text-teal-800 font-medium text-xs"
                                                 >
@@ -377,7 +415,7 @@ const PatientDashboard = () => {
                     <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
                         <h2 className="font-bold text-gray-900 mb-4">Quick Actions</h2>
                         <div className="space-y-3">
-                            <button 
+                            <button
                                 onClick={() => navigate('/appointments/new')}
                                 className="w-full flex items-center p-3 rounded-lg border border-gray-200 hover:border-teal-500 hover:bg-teal-50 transition-all group"
                             >
@@ -386,8 +424,8 @@ const PatientDashboard = () => {
                                 </div>
                                 <span className="ml-3 font-medium text-gray-700 group-hover:text-teal-900">Book New Appointment</span>
                             </button>
-                            
-                            <button 
+
+                            <button
                                 onClick={() => navigate('/prescriptions')}
                                 className="w-full flex items-center p-3 rounded-lg border border-gray-200 hover:border-blue-500 hover:bg-blue-50 transition-all group"
                             >
@@ -397,7 +435,7 @@ const PatientDashboard = () => {
                                 <span className="ml-3 font-medium text-gray-700 group-hover:text-blue-900">My Prescriptions</span>
                             </button>
 
-                             <button 
+                            <button
                                 onClick={() => navigate('/payments')}
                                 className="w-full flex items-center p-3 rounded-lg border border-gray-200 hover:border-orange-500 hover:bg-orange-50 transition-all group"
                             >
@@ -413,7 +451,7 @@ const PatientDashboard = () => {
                     <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
                         <div className="flex justify-between items-center mb-4">
                             <h2 className="font-bold text-gray-900">Latest Prescriptions</h2>
-                             <button onClick={() => navigate('/prescriptions')} className="text-xs text-teal-600 hover:underline">View All</button>
+                            <button onClick={() => navigate('/prescriptions')} className="text-xs text-teal-600 hover:underline">View All</button>
                         </div>
                         <ul className="space-y-4">
                             {prescriptions.slice(0, 3).map((pres) => (
@@ -423,7 +461,7 @@ const PatientDashboard = () => {
                                     </div>
                                     <div>
                                         <p className="text-sm font-semibold text-gray-800">{pres.medication || `Prescription #${pres.id}`}</p>
-                                        <p className="text-xs text-gray-500">Dr. {doctorsMap[pres.doctorId] || 'Unknown'}</p>
+                                        <p className="text-xs text-gray-500">Dr. {pres.doctorName}</p>
                                         <p className="text-xs text-gray-400 mt-1">{pres.date ? formatDate(pres.date) : 'Recent'}</p>
                                     </div>
                                 </li>
