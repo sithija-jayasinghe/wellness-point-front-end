@@ -20,10 +20,13 @@ import { useToast } from '../../components/useToast';
 import Spinner from '../../components/Spinner';
 import EmptyState from '../../components/EmptyState';
 import ErrorState from '../../components/ErrorState';
+import { useAuth } from '../../context/AuthContext';
 
 const AppointmentsListPage = () => {
     const navigate = useNavigate();
     const { toast } = useToast();
+    const { user } = useAuth();
+    const isPatient = user?.role === 'PATIENT';
     
     const [appointments, setAppointments] = useState([]);
     const [schedules, setSchedules] = useState([]);
@@ -83,9 +86,21 @@ const AppointmentsListPage = () => {
                 getAllPatients().catch(() => [])
             ]);
 
-            // Removed auto-cancel logic for expired appointments per requirement.
-            // Appointments remain 'BOOKED' until manually completed or cancelled.
-            setAppointments(appointmentsData);
+            // If the logged-in user is a patient, filter to only their appointments
+            if (isPatient) {
+                const currentPatient = patientsData.find(p =>
+                    (p.userId && p.userId === user?.id) ||
+                    (p.email && p.email === user?.email) ||
+                    (p.name && user?.name && p.name.toLowerCase() === user.name.toLowerCase())
+                );
+                if (currentPatient) {
+                    setAppointments(appointmentsData.filter(apt => apt.patientId === currentPatient.id));
+                } else {
+                    setAppointments([]);
+                }
+            } else {
+                setAppointments(appointmentsData);
+            }
 
             setSchedules(schedulesData);
             setDoctors(doctorsData);
