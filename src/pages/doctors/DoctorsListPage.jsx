@@ -17,10 +17,13 @@ import { useToast } from '../../components/useToast';
 import Spinner from '../../components/Spinner';
 import EmptyState from '../../components/EmptyState';
 import ErrorState from '../../components/ErrorState';
+import { useAuth } from '../../context/AuthContext';
 
 const DoctorsListPage = () => {
     const navigate = useNavigate();
     const { toast } = useToast();
+    const { user } = useAuth();
+    const isPatient = user?.role === 'PATIENT';
 
     const [doctors, setDoctors] = useState([]);
     const [clinics, setClinics] = useState([]);
@@ -114,9 +117,11 @@ const DoctorsListPage = () => {
                 title="Doctors"
                 subtitle="Manage doctor records"
                 action={
-                    <Button onClick={() => navigate('/doctors/new')} icon={Plus}>
-                        Add Doctor
-                    </Button>
+                    !isPatient && (
+                        <Button onClick={() => navigate('/doctors/new')} icon={Plus}>
+                            Add Doctor
+                        </Button>
+                    )
                 }
             />
 
@@ -152,7 +157,7 @@ const DoctorsListPage = () => {
                                 <TableHead>Specialization</TableHead>
                                 <TableHead>Consultation Fee</TableHead>
                                 <TableHead>Status</TableHead>
-                                <TableHead className="text-right">Actions</TableHead>
+                                {!isPatient && <TableHead className="text-right">Actions</TableHead>}
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -208,39 +213,41 @@ const DoctorsListPage = () => {
                                                 {doctor.status}
                                             </span>
                                         </td>
-                                        <td className="px-6 py-4 text-right">
-                                            <div className="flex items-center justify-end gap-2">
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={() => navigate(`/doctors/${doctor.id}/edit`)}
-                                                    className="h-8 w-8 p-0 text-gray-500 hover:text-blue-600"
-                                                    title="Edit Doctor"
-                                                >
-                                                    <Edit className="h-4 w-4" />
-                                                </Button>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={() => handleStatusChange(doctor)}
-                                                    disabled={updatingId === doctor.id}
-                                                    className={`h-8 w-8 p-0 ${
-                                                        updatingId === doctor.id ? 'opacity-50 cursor-not-allowed' : ''
-                                                    } ${
-                                                        doctor.status === 'ACTIVE' || doctor.status === 'Active'
-                                                        ? 'text-green-600 hover:text-green-700' 
-                                                        : 'text-gray-400 hover:text-gray-600'
-                                                    }`}
-                                                    title={doctor.status === 'ACTIVE' || doctor.status === 'Active' ? 'Deactivate Doctor' : 'Activate Doctor'}
-                                                >
-                                                    {updatingId === doctor.id ? (
-                                                        <Spinner size="sm" />
-                                                    ) : (
-                                                        <RefreshCw className="h-4 w-4" />
-                                                    )}
-                                                </Button>
-                                            </div>
-                                        </td>
+                                        {!isPatient && (
+                                            <td className="px-6 py-4 text-right">
+                                                <div className="flex items-center justify-end gap-2">
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() => navigate(`/doctors/${doctor.id}/edit`)}
+                                                        className="h-8 w-8 p-0 text-gray-500 hover:text-blue-600"
+                                                        title="Edit Doctor"
+                                                    >
+                                                        <Edit className="h-4 w-4" />
+                                                    </Button>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() => handleStatusChange(doctor)}
+                                                        disabled={updatingId === doctor.id}
+                                                        className={`h-8 w-8 p-0 ${
+                                                            updatingId === doctor.id ? 'opacity-50 cursor-not-allowed' : ''
+                                                        } ${
+                                                            doctor.status === 'ACTIVE' || doctor.status === 'Active'
+                                                            ? 'text-green-600 hover:text-green-700' 
+                                                            : 'text-gray-400 hover:text-gray-600'
+                                                        }`}
+                                                        title={doctor.status === 'ACTIVE' || doctor.status === 'Active' ? 'Deactivate Doctor' : 'Activate Doctor'}
+                                                    >
+                                                        {updatingId === doctor.id ? (
+                                                            <Spinner size="sm" />
+                                                        ) : (
+                                                            <RefreshCw className="h-4 w-4" />
+                                                        )}
+                                                    </Button>
+                                                </div>
+                                            </td>
+                                        )}
                                     </TableRow>
                                 );
                             })}
