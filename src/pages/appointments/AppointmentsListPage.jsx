@@ -73,6 +73,25 @@ const AppointmentsListPage = () => {
         return now >= apptDate;
     };
 
+    // Helper to check if appointment can still be edited by a patient (24h before schedule start)
+    const canPatientEdit = (apt) => {
+        if (!isPatient) return true;
+        // Find the schedule linked to this appointment
+        const schedule = schedules.find(s => s.id === apt.scheduleId);
+        const startData = schedule?.startDateTime;
+        if (!startData) {
+            // Fallback to appointmentTime if schedule not found
+            const apptDate = getAppointmentDateObj(apt.appointmentTime);
+            if (!apptDate) return false;
+            return (apptDate - new Date()) / (1000 * 60 * 60) > 24;
+        }
+        const scheduleStart = getAppointmentDateObj(startData);
+        if (!scheduleStart) return false;
+        const now = new Date();
+        const hoursUntilStart = (scheduleStart - now) / (1000 * 60 * 60);
+        return hoursUntilStart > 24;
+    };
+
     useEffect(() => {
         fetchAppointments();
     }, []);
@@ -324,9 +343,23 @@ const AppointmentsListPage = () => {
                                                 <Button 
                                                     variant="ghost" 
                                                     size="sm"
-                                                    onClick={() => navigate(`/appointments/${apt.id}/edit`)}
-                                                    className="h-8 w-8 p-0 text-gray-500 hover:text-blue-600"
-                                                    title="Edit"
+                                                    onClick={() => {
+                                                        if (!canPatientEdit(apt)) {
+                                                            toast({
+                                                                title: 'Edit Unavailable',
+                                                                description: 'The editing time for this appointment has expired. Appointments can only be edited up to 24 hours before the scheduled start time.',
+                                                                variant: 'destructive'
+                                                            });
+                                                            return;
+                                                        }
+                                                        navigate(`/appointments/${apt.id}/edit`);
+                                                    }}
+                                                    className={`h-8 w-8 p-0 ${
+                                                        !canPatientEdit(apt)
+                                                            ? 'text-gray-300 cursor-not-allowed'
+                                                            : 'text-gray-500 hover:text-blue-600'
+                                                    }`}
+                                                    title={!canPatientEdit(apt) ? 'Editing time has expired (must be 24h before scheduled start)' : 'Edit'}
                                                 >
                                                     <Edit className="h-4 w-4" />
                                                 </Button>
@@ -350,7 +383,7 @@ const AppointmentsListPage = () => {
                                             >
                                                 <X className="h-4 w-4" />
                                             </Button>
-                                            {!isDoctor && (
+                                            {!isDoctor && !isPatient && (
                                                 <Button 
                                                     variant="ghost" 
                                                     size="sm"
