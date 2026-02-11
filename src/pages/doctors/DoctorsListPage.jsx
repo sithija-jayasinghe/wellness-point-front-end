@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Plus, Search, Edit, RefreshCw, User } from 'lucide-react';
 import { getAllDoctors, updateDoctor } from '../../api/doctors.api';
 import { getAllClinics } from '../../api/clinics.api';
+import { getAllSchedules } from '../../api/schedules.api';
 import PageHeader from '../../components/PageHeader';
 import Button from '../../components/Button';
 import Input from '../../components/Input';
@@ -27,6 +28,7 @@ const DoctorsListPage = () => {
 
     const [doctors, setDoctors] = useState([]);
     const [clinics, setClinics] = useState([]);
+    const [schedules, setSchedules] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
@@ -40,12 +42,12 @@ const DoctorsListPage = () => {
     const fetchData = async () => {
         try {
             setLoading(true);
-            const [doctorsData, clinicsData] = await Promise.all([
-                getAllDoctors(),
-                getAllClinics()
-            ]);
-            setDoctors(doctorsData);
-            setClinics(clinicsData);
+            const fetchPromises = [getAllDoctors(), getAllClinics()];
+            if (isPatient) fetchPromises.push(getAllSchedules());
+            const results = await Promise.all(fetchPromises);
+            setDoctors(results[0]);
+            setClinics(results[1]);
+            if (isPatient && results[2]) setSchedules(results[2]);
             setError(null);
         } catch (err) {
             console.error('Failed to fetch data', err);
@@ -95,6 +97,31 @@ const DoctorsListPage = () => {
             setUpdatingId(null);
         }
     };
+
+    // Helper to parse schedule datetime (handles array or string format)
+    const parseScheduleDateTime = (dateTimeVal) => {
+        if (!dateTimeVal) return null;
+        if (Array.isArray(dateTimeVal)) {
+            const [year, month, day, hour, minute, second = 0] = dateTimeVal;
+            return new Date(year, month - 1, day, hour, minute, second);
+        }
+        const d = new Date(dateTimeVal);
+        return isNaN(d.getTime()) ? null : d;
+    };
+
+    // Build a map of doctorId -> next upcoming schedule date
+    const nextScheduleMap = {};
+    if (isPatient) {
+        const now = new Date();
+        schedules.forEach(schedule => {
+            const start = parseScheduleDateTime(schedule.startDateTime);
+            if (start && start >= now) {
+                if (!nextScheduleMap[schedule.doctorId] || start < nextScheduleMap[schedule.doctorId]) {
+                    nextScheduleMap[schedule.doctorId] = start;
+                }
+            }
+        });
+    }
 
     const filteredDoctors = doctors.filter(doctor =>
         doctor.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -157,6 +184,7 @@ const DoctorsListPage = () => {
                                 <TableHead>Specialization</TableHead>
                                 <TableHead>Consultation Fee</TableHead>
                                 <TableHead>Status</TableHead>
+                                {isPatient && <TableHead>Next Schedule</TableHead>}
                                 {!isPatient && <TableHead className="text-right">Actions</TableHead>}
                             </TableRow>
                         </TableHeader>
@@ -213,6 +241,14 @@ const DoctorsListPage = () => {
                                                 {doctor.status}
                                             </span>
                                         </td>
+                                        {isPatient && (
+                                            <td className="px-6 py-4 text-gray-600">
+                                                {nextScheduleMap[doctor.id]
+                                                    ? nextScheduleMap[doctor.id].toLocaleString()
+                                                    : <span className="text-gray-400">No upcoming schedule</span>
+                                                }
+                                            </td>
+                                        )}
                                         {!isPatient && (
                                             <td className="px-6 py-4 text-right">
                                                 <div className="flex items-center justify-end gap-2">
