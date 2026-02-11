@@ -27,6 +27,7 @@ const AppointmentsListPage = () => {
     const { toast } = useToast();
     const { user } = useAuth();
     const isPatient = user?.role === 'PATIENT';
+    const isDoctor = user?.role === 'DOCTOR';
     
     const [appointments, setAppointments] = useState([]);
     const [schedules, setSchedules] = useState([]);
@@ -95,6 +96,28 @@ const AppointmentsListPage = () => {
                 );
                 if (currentPatient) {
                     setAppointments(appointmentsData.filter(apt => apt.patientId === currentPatient.id));
+                } else {
+                    setAppointments([]);
+                }
+            } else if (isDoctor) {
+                // Find the doctor record matching the logged-in user
+                const currentUserId = user.id || user.userId;
+                const currentDoctor = doctorsData.find(d => {
+                    const docUserId = d.user?.id || d.user?.userId;
+                    if (currentUserId && docUserId) {
+                        return String(currentUserId) === String(docUserId);
+                    }
+                    return (d.name && d.name === user.username) ||
+                           (d.username && d.username === user.username) ||
+                           (d.email && d.email === user.email);
+                });
+                if (currentDoctor) {
+                    // Get schedule IDs belonging to this doctor
+                    const doctorScheduleIds = schedulesData
+                        .filter(s => s.doctorId === currentDoctor.id)
+                        .map(s => s.id);
+                    // Filter appointments to only those linked to doctor's schedules
+                    setAppointments(appointmentsData.filter(apt => doctorScheduleIds.includes(apt.scheduleId)));
                 } else {
                     setAppointments([]);
                 }
