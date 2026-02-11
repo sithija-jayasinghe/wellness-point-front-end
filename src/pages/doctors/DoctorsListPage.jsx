@@ -32,6 +32,7 @@ const DoctorsListPage = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
+    const [specializationFilter, setSpecializationFilter] = useState('');
 
     const [updatingId, setUpdatingId] = useState(null);
 
@@ -123,10 +124,26 @@ const DoctorsListPage = () => {
         });
     }
 
-    const filteredDoctors = doctors.filter(doctor =>
-        doctor.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        doctor.specialization?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    // For patients, hide inactive doctors
+    const visibleDoctors = isPatient
+        ? doctors.filter(d => d.status === 'ACTIVE' || d.status === 'Active')
+        : doctors;
+
+    // Collect unique specializations for the filter dropdown
+    const specializations = [...new Set(
+        visibleDoctors
+            .map(d => d.specialization)
+            .filter(Boolean)
+    )].sort();
+
+    const filteredDoctors = visibleDoctors.filter(doctor => {
+        const matchesSearch =
+            doctor.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            doctor.specialization?.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesSpecialization =
+            !specializationFilter || doctor.specialization === specializationFilter;
+        return matchesSearch && matchesSpecialization;
+    });
 
     if (loading) return <Spinner fullScreen />;
 
@@ -154,13 +171,29 @@ const DoctorsListPage = () => {
 
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
                 <div className="p-4 border-b border-gray-100">
-                    <div className="max-w-md">
-                        <Input
-                            placeholder="Search doctors..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            icon={Search}
-                        />
+                    <div className="flex flex-wrap items-center gap-4">
+                        <div className="max-w-md flex-1">
+                            <Input
+                                placeholder="Search doctors..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                icon={Search}
+                            />
+                        </div>
+                        {isPatient && (
+                            <div className="w-56">
+                                <select
+                                    value={specializationFilter}
+                                    onChange={(e) => setSpecializationFilter(e.target.value)}
+                                    className="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent appearance-none"
+                                >
+                                    <option value="">All Specializations</option>
+                                    {specializations.map(spec => (
+                                        <option key={spec} value={spec}>{spec}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -183,7 +216,7 @@ const DoctorsListPage = () => {
                                 <TableHead>Clinics</TableHead>
                                 <TableHead>Specialization</TableHead>
                                 <TableHead>Consultation Fee</TableHead>
-                                <TableHead>Status</TableHead>
+                                {!isPatient && <TableHead>Status</TableHead>}
                                 {isPatient && <TableHead>Next Schedule</TableHead>}
                                 {!isPatient && <TableHead className="text-right">Actions</TableHead>}
                             </TableRow>
@@ -232,15 +265,17 @@ const DoctorsListPage = () => {
                                         <td className="px-6 py-4 text-gray-600">
                                             LKR {Number(doctor.consultationFee).toFixed(2)}
                                         </td>
-                                        <td className="px-6 py-4">
-                                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                                doctor.status === 'ACTIVE' || doctor.status === 'Active'
-                                                ? 'bg-green-100 text-green-800'
-                                                : 'bg-gray-100 text-gray-800'
-                                                }`}>
-                                                {doctor.status}
-                                            </span>
-                                        </td>
+                                        {!isPatient && (
+                                            <td className="px-6 py-4">
+                                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                                    doctor.status === 'ACTIVE' || doctor.status === 'Active'
+                                                    ? 'bg-green-100 text-green-800'
+                                                    : 'bg-gray-100 text-gray-800'
+                                                    }`}>
+                                                    {doctor.status}
+                                                </span>
+                                            </td>
+                                        )}
                                         {isPatient && (
                                             <td className="px-6 py-4 text-gray-600">
                                                 {nextScheduleMap[doctor.id]
