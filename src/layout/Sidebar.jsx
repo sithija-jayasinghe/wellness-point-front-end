@@ -45,7 +45,6 @@ const Sidebar = () => {
 
   const doctorLinks = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
-    { icon: Users, label: 'Patients', path: '/patients' },
     { icon: Calendar, label: 'Schedules', path: '/schedules' },
     { icon: Clock, label: 'Appointments', path: '/appointments' },
     { icon: FileText, label: 'Consultations', path: '/consultations' },
