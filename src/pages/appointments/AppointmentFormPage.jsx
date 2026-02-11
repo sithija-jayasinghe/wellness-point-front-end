@@ -85,6 +85,18 @@ const AppointmentFormPage = () => {
             setSchedules(schedulesData || []);
             setDoctors(doctorsData || []);
             setClinics(clinicsData || []);
+
+            // Auto-set patientId for logged-in patient
+            if (isPatient && user && patientsData) {
+                const currentPatient = patientsData.find(p =>
+                    (p.userId && (String(p.userId) === String(user.id))) ||
+                    (p.email && p.email === user.email) ||
+                    (p.name && user.name && p.name.toLowerCase() === user.name.toLowerCase())
+                );
+                if (currentPatient) {
+                    setFormData(prev => ({ ...prev, patientId: currentPatient.id }));
+                }
+            }
         } catch (error) {
             console.error("Failed to load dropdown data", error);
         } finally {
@@ -368,31 +380,42 @@ const AppointmentFormPage = () => {
                             <label className="block text-sm font-medium text-gray-700 mb-1">
                                 Patient <span className="text-red-500">*</span>
                             </label>
-                            <div className="flex gap-3">
-                                <div className="flex-1">
-                                    <SearchableSelect
-                                        name="patientId"
-                                        value={formData.patientId}
-                                        onChange={handleChange}
-                                        placeholder="Select Patient..."
-                                        className={errors.patientId ? 'border-red-300 focus:ring-red-500' : ''}
-                                        options={patients.map(p => ({
-                                            value: p.id,
-                                            label: `${p.id} - ${p.name} (${p.phone})`
-                                        }))}
-                                    />
+                            {isPatient ? (
+                                <div className="flex h-10 w-full items-center rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-700">
+                                    {(() => {
+                                        const p = patients.find(pt => pt.id === formData.patientId);
+                                        return p ? `${p.name} (${p.phone})` : 'Loading...';
+                                    })()}
                                 </div>
-                                <Button
-                                    type="button"
-                                    onClick={() => setIsPatientModalOpen(true)}
-                                    icon={Plus}
-                                    variant="outline"
-                                    className="shrink-0"
-                                >
-                                    New Patient
-                                </Button>
-                            </div>
-                            {errors.patientId && <p className="mt-1 text-sm text-red-500">{errors.patientId}</p>}
+                            ) : (
+                                <>
+                                    <div className="flex gap-3">
+                                        <div className="flex-1">
+                                            <SearchableSelect
+                                                name="patientId"
+                                                value={formData.patientId}
+                                                onChange={handleChange}
+                                                placeholder="Select Patient..."
+                                                className={errors.patientId ? 'border-red-300 focus:ring-red-500' : ''}
+                                                options={patients.map(p => ({
+                                                    value: p.id,
+                                                    label: `${p.id} - ${p.name} (${p.phone})`
+                                                }))}
+                                            />
+                                        </div>
+                                        <Button
+                                            type="button"
+                                            onClick={() => setIsPatientModalOpen(true)}
+                                            icon={Plus}
+                                            variant="outline"
+                                            className="shrink-0"
+                                        >
+                                            New Patient
+                                        </Button>
+                                    </div>
+                                    {errors.patientId && <p className="mt-1 text-sm text-red-500">{errors.patientId}</p>}
+                                </>
+                            )}
                         </div>
 
                         <div>
