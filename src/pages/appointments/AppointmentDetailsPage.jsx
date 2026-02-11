@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, User, Calendar, Clock, Activity, CheckCircle, XCircle, Trash2, CreditCard, Stethoscope, Pill, FileText } from 'lucide-react';
+import { ArrowLeft, User, Calendar, Clock, Activity, CheckCircle, XCircle, Trash2, CreditCard, Stethoscope, Pill, FileText, Save, Plus } from 'lucide-react';
 import { getAllAppointments, deleteAppointment } from '../../api/appointments.api'; 
 import { getAllPatients } from '../../api/patients.api';
 import { getAllSchedules } from '../../api/schedules.api';
 import { getAllDoctors } from '../../api/doctors.api';
-import { getAllConsultations } from '../../api/consultations.api';
-import { getAllPrescriptions } from '../../api/prescriptions.api';
+import { getAllConsultations, createConsultation } from '../../api/consultations.api';
+import { getAllPrescriptions, createPrescription } from '../../api/prescriptions.api';
 import PageHeader from '../../components/PageHeader';
 import Button from '../../components/Button';
+import Input from '../../components/Input';
+import Textarea from '../../components/Textarea';
 import Spinner from '../../components/Spinner';
 import EmptyState from '../../components/EmptyState';
 import { useToast } from '../../components/useToast';
@@ -28,6 +30,13 @@ const AppointmentDetailsPage = () => {
     const [loading, setLoading] = useState(true);
     const [actionLoading, setActionLoading] = useState(false);
     const isDoctor = user?.role === 'DOCTOR';
+
+    // Consultation & Prescription form state (doctor only)
+    const [consultationForm, setConsultationForm] = useState({ diagnosis: '', notes: '' });
+    const [prescriptionItems, setPrescriptionItems] = useState([{ medicineName: '', dosage: '', duration: '' }]);
+    const [consultationErrors, setConsultationErrors] = useState({});
+    const [savingConsultation, setSavingConsultation] = useState(false);
+    const [existingConsultation, setExistingConsultation] = useState(null);
 
     // Helper to parse date data into Date object
     const getAppointmentDateObj = (dateData) => {
@@ -158,6 +167,14 @@ const AppointmentDetailsPage = () => {
             setAppointment(apt);
             setPatient(pat);
 
+            // Check if consultation already exists for this appointment
+            if (isDoctor) {
+                const existingCons = consultations.find(c => c.appointmentId === apt.id);
+                if (existingCons) {
+                    setExistingConsultation(existingCons);
+                }
+            }
+
             if (apt.scheduleId) {
                 const sch = schedules.find(s => s.id === apt.scheduleId);
                 setSchedule(sch);
@@ -239,6 +256,87 @@ const AppointmentDetailsPage = () => {
     const handleProcessPayment = () => {
         // Navigate to payment creation with pre-filled data
         navigate(`/payments/new?appointmentId=${id}&amount=${doctor?.consultationFee || 0}&patientId=${patient?.id || ''}`);
+    };
+
+    // --- Consultation & Prescription form handlers (doctor only) ---
+    const handleConsultationChange = (e) => {
+        const { name, value } = e.target;
+        setConsultationForm(prev => ({ ...prev, [name]: value }));
+        if (consultationErrors[name]) {
+            setConsultationErrors(prev => ({ ...prev, [name]: null }));
+        }
+    };
+
+    const handlePrescriptionItemChange = (index, field, value) => {
+        const newItems = [...prescriptionItems];
+        newItems[index] = { ...newItems[index], [field]: value };
+        setPrescriptionItems(newItems);
+    };
+
+    const addPrescriptionItem = () => {
+        setPrescriptionItems(prev => [...prev, { medicineName: '', dosage: '', duration: '' }]);
+    };
+
+    const removePrescriptionItem = (index) => {
+        if (prescriptionItems.length === 1) return;
+        setPrescriptionItems(prev => prev.filter((_, i) => i !== index));
+    };
+
+    const handleSaveConsultation = async (e) => {
+        e.preventDefault();
+
+        const newErrors = {};
+        if (!consultationForm.diagnosis.trim()) newErrors.diagnosis = 'Diagnosis is required';
+        setConsultationErrors(newErrors);
+        if (Object.keys(newErrors).length > 0) return;
+
+        try {
+            setSavingConsultation(true);
+
+            // 1. Create consultation
+            const consultationPayload = {
+                appointmentId: parseInt(id),
+                diagnosis: consultationForm.diagnosis,
+                notes: consultationForm.notes,
+            };
+            const createdConsultation = await createConsultation(consultationPayload);
+
+            // 2. Create prescription if any medicine items are filled
+            const filledItems = prescriptionItems.filter(i => i.medicineName.trim() !== '');
+            if (filledItems.length > 0) {
+                const consultationId =
+                    createdConsultation?.consultationId ||
+                    createdConsultation?.id ||
+                    createdConsultation?.data?.consultationId ||
+                    createdConsultation?.data?.id;
+
+                if (consultationId) {
+                    const prescriptionPayload = {
+                        consultationId: consultationId,
+                        issuedDate: new Date().toISOString().split('T')[0],
+                        prescriptionItems: filledItems,
+                    };
+                    await createPrescription(prescriptionPayload);
+                    toast({ title: 'Success', description: 'Consultation & Prescription saved!', variant: 'success' });
+                } else {
+                    toast({ title: 'Warning', description: 'Consultation saved, but prescription failed (ID missing).', variant: 'warning' });
+                }
+            } else {
+                toast({ title: 'Success', description: 'Consultation saved successfully', variant: 'success' });
+            }
+
+            // Refresh data to show the new consultation in history
+            await fetchData();
+        } catch (err) {
+            console.error('Failed to save consultation', err);
+            let description = err.response?.data?.message || 'Failed to save consultation';
+            if (description.includes('Consultation allowed only for BOOKED')) {
+                description = "Cannot create consultation. The appointment must be in 'BOOKED' status.";
+            }
+            toast({ title: 'Error', description, variant: 'destructive' });
+        } finally {
+            setSavingConsultation(false);
+        }
     };
 
     if (loading) {
@@ -372,6 +470,123 @@ const AppointmentDetailsPage = () => {
                     )}
                 </div>
             </div>
+
+            {/* Doctor: Create Consultation & Prescription */}
+            {isDoctor && appointment && appointment.status !== 'CANCELLED' && appointment.status !== 'Cancelled' && (
+                <div className="space-y-4">
+                    <h3 className="text-lg font-semibold text-gray-900">Consultation & Prescription</h3>
+
+                    {existingConsultation ? (
+                        <div className="bg-white rounded-xl shadow-sm border border-green-200 p-6">
+                            <div className="flex items-center gap-2 mb-4">
+                                <CheckCircle className="h-5 w-5 text-green-600" />
+                                <span className="font-medium text-green-800">Consultation already recorded for this appointment</span>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="bg-gray-50 rounded-lg p-3">
+                                    <span className="text-gray-500 block text-xs uppercase tracking-wide mb-1">Diagnosis</span>
+                                    <span className="font-medium text-gray-900">{existingConsultation.diagnosis || '-'}</span>
+                                </div>
+                                <div className="bg-gray-50 rounded-lg p-3">
+                                    <span className="text-gray-500 block text-xs uppercase tracking-wide mb-1">Notes</span>
+                                    <span className="text-gray-700">{existingConsultation.notes || '-'}</span>
+                                </div>
+                            </div>
+                        </div>
+                    ) : (
+                        <form onSubmit={handleSaveConsultation} className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-6">
+                            {/* Diagnosis Section */}
+                            <div>
+                                <h4 className="text-md font-medium text-gray-900 mb-4 flex items-center gap-2">
+                                    <Activity className="h-4 w-4 text-orange-500" />
+                                    Diagnosis Details
+                                </h4>
+                                <div className="grid grid-cols-1 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Diagnosis <span className="text-red-500">*</span>
+                                        </label>
+                                        <Input
+                                            name="diagnosis"
+                                            value={consultationForm.diagnosis}
+                                            onChange={handleConsultationChange}
+                                            placeholder="e.g. Common Cold, Hypertension"
+                                            className={consultationErrors.diagnosis ? 'border-red-300 focus:ring-red-500' : ''}
+                                        />
+                                        {consultationErrors.diagnosis && <p className="mt-1 text-sm text-red-500">{consultationErrors.diagnosis}</p>}
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                                        <Textarea
+                                            name="notes"
+                                            value={consultationForm.notes}
+                                            onChange={handleConsultationChange}
+                                            rows={3}
+                                            placeholder="Clinical notes, observations..."
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Prescription Section */}
+                            <div className="border-t border-gray-100 pt-6">
+                                <h4 className="text-md font-medium text-gray-900 mb-4 flex items-center gap-2">
+                                    <Pill className="h-4 w-4 text-emerald-500" />
+                                    Prescribe Medication
+                                </h4>
+                                <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 space-y-4">
+                                    {prescriptionItems.map((item, index) => (
+                                        <div key={index} className="flex gap-3 items-start">
+                                            <div className="flex-1">
+                                                <Input
+                                                    placeholder="Medicine Name (e.g. Paracetamol)"
+                                                    value={item.medicineName}
+                                                    onChange={(e) => handlePrescriptionItemChange(index, 'medicineName', e.target.value)}
+                                                    className="bg-white"
+                                                />
+                                            </div>
+                                            <div className="w-1/4">
+                                                <Input
+                                                    placeholder="Dosage (e.g. 500mg)"
+                                                    value={item.dosage}
+                                                    onChange={(e) => handlePrescriptionItemChange(index, 'dosage', e.target.value)}
+                                                    className="bg-white"
+                                                />
+                                            </div>
+                                            <div className="w-1/4">
+                                                <Input
+                                                    placeholder="Duration (e.g. 3 days)"
+                                                    value={item.duration}
+                                                    onChange={(e) => handlePrescriptionItemChange(index, 'duration', e.target.value)}
+                                                    className="bg-white"
+                                                />
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => removePrescriptionItem(index)}
+                                                className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-md mt-0.5"
+                                                disabled={prescriptionItems.length === 1}
+                                            >
+                                                <Trash2 className="h-4 w-4" />
+                                            </button>
+                                        </div>
+                                    ))}
+                                    <Button type="button" variant="outline" size="sm" onClick={addPrescriptionItem} icon={Plus}>
+                                        Add Another Medicine
+                                    </Button>
+                                </div>
+                            </div>
+
+                            {/* Submit */}
+                            <div className="pt-4 flex items-center justify-end gap-3 border-t border-gray-100">
+                                <Button type="submit" disabled={savingConsultation} icon={savingConsultation ? undefined : Save}>
+                                    {savingConsultation ? 'Saving...' : 'Save Consultation & Prescription'}
+                                </Button>
+                            </div>
+                        </form>
+                    )}
+                </div>
+            )}
 
             {/* Patient Medical History (Doctor View) */}
             {isDoctor && patient && (

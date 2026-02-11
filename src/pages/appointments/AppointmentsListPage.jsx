@@ -242,9 +242,11 @@ const AppointmentsListPage = () => {
                         <Button variant="outline" onClick={fetchAppointments} title="Refresh List" icon={RefreshCw}>
                             Refresh
                         </Button>
-                        <Button onClick={() => navigate('/appointments/new')} icon={Plus}>
-                            Book Appointment
-                        </Button>
+                        {!isDoctor && (
+                            <Button onClick={() => navigate('/appointments/new')} icon={Plus}>
+                                Book Appointment
+                            </Button>
+                        )}
                     </div>
                 }
             />
@@ -268,7 +270,7 @@ const AppointmentsListPage = () => {
                             title={searchTerm ? "No appointments found" : "No appointments yet"}
                             description={searchTerm ? "Try adjusting your search terms" : "Get started by booking a new appointment"}
                             icon={Calendar}
-                            action={!searchTerm && (
+                            action={!searchTerm && !isDoctor && (
                                 <Button onClick={() => navigate('/appointments/new')} variant="outline">
                                     Book Appointment
                                 </Button>
@@ -318,15 +320,17 @@ const AppointmentsListPage = () => {
                                             >
                                                 <Eye className="h-4 w-4" />
                                             </Button>
-                                            <Button 
-                                                variant="ghost" 
-                                                size="sm"
-                                                onClick={() => navigate(`/appointments/${apt.id}/edit`)}
-                                                className="h-8 w-8 p-0 text-gray-500 hover:text-blue-600"
-                                                title="Edit"
-                                            >
-                                                <Edit className="h-4 w-4" />
-                                            </Button>
+                                            {!isDoctor && (
+                                                <Button 
+                                                    variant="ghost" 
+                                                    size="sm"
+                                                    onClick={() => navigate(`/appointments/${apt.id}/edit`)}
+                                                    className="h-8 w-8 p-0 text-gray-500 hover:text-blue-600"
+                                                    title="Edit"
+                                                >
+                                                    <Edit className="h-4 w-4" />
+                                                </Button>
+                                            )}
                                             <Button 
                                                 variant="ghost" 
                                                 size="sm"
@@ -346,15 +350,17 @@ const AppointmentsListPage = () => {
                                             >
                                                 <X className="h-4 w-4" />
                                             </Button>
-                                            <Button 
-                                                variant="ghost" 
-                                                size="sm"
-                                                onClick={() => openConfirm(apt.id, 'delete')}
-                                                className="h-8 w-8 p-0 text-gray-500 hover:text-red-600"
-                                                title="Delete"
-                                            >
-                                                <Trash2 className="h-4 w-4" />
-                                            </Button>
+                                            {!isDoctor && (
+                                                <Button 
+                                                    variant="ghost" 
+                                                    size="sm"
+                                                    onClick={() => openConfirm(apt.id, 'delete')}
+                                                    className="h-8 w-8 p-0 text-gray-500 hover:text-red-600"
+                                                    title="Delete"
+                                                >
+                                                    <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                            )}
                                         </div>
                                     </td>
                                 </TableRow>

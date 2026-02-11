@@ -47,8 +47,6 @@ const Sidebar = () => {
     { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
     { icon: Calendar, label: 'Schedules', path: '/schedules' },
     { icon: Clock, label: 'Appointments', path: '/appointments' },
-    { icon: FileText, label: 'Consultations', path: '/consultations' },
-    { icon: Pill, label: 'Prescriptions', path: '/prescriptions' },
     { icon: Bell, label: 'Notifications', path: '/notifications' },
   ];
 
