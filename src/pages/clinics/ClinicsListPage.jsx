@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search, Edit, Trash2, Building } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Building, Eye } from 'lucide-react';
 import { getAllClinics, deleteClinic } from '../../api/clinics.api';
 import PageHeader from '../../components/PageHeader';
 import Button from '../../components/Button';
@@ -17,6 +17,7 @@ import { useToast } from '../../components/useToast';
 import Spinner from '../../components/Spinner';
 import EmptyState from '../../components/EmptyState';
 import ErrorState from '../../components/ErrorState';
+import ClinicOverviewModal from './ClinicOverviewModal';
 
 const ClinicsListPage = () => {
     const navigate = useNavigate();
@@ -29,6 +30,7 @@ const ClinicsListPage = () => {
     
     const [deleteId, setDeleteId] = useState(null);
     const [deleting, setDeleting] = useState(false);
+    const [overviewClinic, setOverviewClinic] = useState(null);
 
     useEffect(() => {
         fetchClinics();
@@ -163,6 +165,15 @@ const ClinicsListPage = () => {
                                             <Button 
                                                 variant="ghost" 
                                                 size="sm"
+                                                onClick={() => setOverviewClinic(clinic)}
+                                                className="h-8 w-8 p-0 text-gray-500 hover:text-emerald-600"
+                                                title="View Overview"
+                                            >
+                                                <Eye className="h-4 w-4" />
+                                            </Button>
+                                            <Button 
+                                                variant="ghost" 
+                                                size="sm"
                                                 onClick={() => navigate(`/clinics/${clinic.id}/edit`)}
                                                 className="h-8 w-8 p-0 text-gray-500 hover:text-blue-600"
                                             >
@@ -184,6 +195,12 @@ const ClinicsListPage = () => {
                     </Table>
                 )}
             </div>
+
+            <ClinicOverviewModal 
+                clinic={overviewClinic} 
+                open={!!overviewClinic} 
+                onClose={() => setOverviewClinic(null)} 
+            />
 
             <ConfirmDialog 
                 open={!!deleteId} 
