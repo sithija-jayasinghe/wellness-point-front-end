@@ -34,11 +34,10 @@ const UserFormPage = () => {
     const [initialLoading, setInitialLoading] = useState(true);
     const [errors, setErrors] = useState({});
 
-    // Available roles
+    // Available roles (Patient is excluded — patients are created via appointment flow)
     const roles = [
         { id: 'ADMIN', name: 'Admin' },
         { id: 'DOCTOR', name: 'Doctor' },
-        { id: 'PATIENT', name: 'Patient' },
         { id: 'RECEPTIONIST', name: 'Receptionist' }
     ];
 
