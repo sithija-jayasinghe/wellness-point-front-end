@@ -19,6 +19,7 @@ const DoctorFormPage = () => {
 
     const [formData, setFormData] = useState({
         name: '',
+        email: '',
         clinicIds: [],
         specialization: '',
         consultationFee: '',
@@ -59,6 +60,7 @@ const DoctorFormPage = () => {
 
                 setFormData({
                     name: doctor.name || '',
+                    email: doctor.email || '',
                     clinicIds: currentClinicIds,
                     specialization: doctor.specialization || '',
                     consultationFee: doctor.consultationFee || '',
@@ -183,16 +185,26 @@ const DoctorFormPage = () => {
                         required
                     />
 
+                    <Input
+                        label="Email Address"
+                        name="email"
+                        type="email"
+                        value={formData.email}
+                        onChange={handleChange}
+                        placeholder="e.g. doctor@clinic.com"
+                        hint="Used for appointment notifications"
+                    />
+
                     <div className="space-y-1">
                         <label className="block text-sm font-medium text-gray-700">
                             Clinics <span className="text-red-500">*</span>
                         </label>
                         <SearchableSelect
                             name="clinicIds"
-                            options={clinics.map(clinic => ({ 
-                                value: clinic.id, 
+                            options={clinics.map(clinic => ({
+                                value: clinic.id,
                                 label: clinic.name,
-                                status: clinic.status 
+                                status: clinic.status
                             }))}
                             value={formData.clinicIds}
                             onChange={handleChange}

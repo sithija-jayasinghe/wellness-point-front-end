@@ -28,6 +28,7 @@ const PaymentFormPage = () => {
     const [loading, setLoading] = useState(false);
     const [initialLoading, setInitialLoading] = useState(true);
     const [errors, setErrors] = useState({});
+    const [emailNotificationSent, setEmailNotificationSent] = useState(false);
 
     useEffect(() => {
         if (isEditMode) {
@@ -43,12 +44,12 @@ const PaymentFormPage = () => {
             if (data) {
                 let pDate = new Date();
                 if (data.paymentDate) {
-                     if (Array.isArray(data.paymentDate)) {
-                         const [y, m, d] = data.paymentDate;
-                         pDate = new Date(y, m - 1, d);
-                     } else {
-                         pDate = new Date(data.paymentDate);
-                     }
+                    if (Array.isArray(data.paymentDate)) {
+                        const [y, m, d] = data.paymentDate;
+                        pDate = new Date(y, m - 1, d);
+                    } else {
+                        pDate = new Date(data.paymentDate);
+                    }
                 }
 
                 setFormData({
@@ -97,11 +98,11 @@ const PaymentFormPage = () => {
 
         try {
             setLoading(true);
-            
+
             const formatDate = (d) => {
-                 if (!d) return null;
-                 const pad = n => String(n).padStart(2, '0');
-                 return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+                if (!d) return null;
+                const pad = n => String(n).padStart(2, '0');
+                return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
             };
 
             const payload = {
@@ -116,7 +117,8 @@ const PaymentFormPage = () => {
                 toast({ title: 'Success', description: 'Payment updated', variant: 'success' });
             } else {
                 await addPayment(payload);
-                toast({ title: 'Success', description: 'Payment recorded', variant: 'success' });
+                toast({ title: 'Success', description: 'Payment recorded — receipt email sent to patient', variant: 'success' });
+                setEmailNotificationSent(true);
             }
             navigate('/payments');
         } catch (err) {
@@ -136,16 +138,30 @@ const PaymentFormPage = () => {
                 title={isEditMode ? 'Edit Payment' : 'New Payment'}
                 description={isEditMode ? 'Update payment record.' : 'Record a new payment.'}
                 actions={
-                    <Button 
-                        variant="outline" 
-                        className="border-blue-500 text-blue-600 hover:bg-blue-50 hover:text-blue-700" 
-                        onClick={() => navigate('/payments')} 
+                    <Button
+                        variant="outline"
+                        className="border-blue-500 text-blue-600 hover:bg-blue-50 hover:text-blue-700"
+                        onClick={() => navigate('/payments')}
                         icon={ArrowLeft}
                     >
                         Back to List
                     </Button>
                 }
             />
+
+            {/* Email Receipt Notification Banner */}
+            {emailNotificationSent && (
+                <div className="flex items-start gap-3 bg-green-50 border border-green-200 rounded-lg px-4 py-3 text-sm text-green-800">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mt-0.5 shrink-0 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                    <div>
+                        <p className="font-medium">Payment receipt email sent!</p>
+                        <p className="text-green-700 mt-0.5">The patient has been notified of the payment via email.</p>
+                    </div>
+                    <button onClick={() => setEmailNotificationSent(false)} className="ml-auto text-green-600 hover:text-green-800 shrink-0" title="Dismiss">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                </div>
+            )}
 
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
                 <form onSubmit={handleSubmit} className="p-6 space-y-6">
@@ -180,7 +196,7 @@ const PaymentFormPage = () => {
                                 />
                                 {errors.amount && <p className="mt-1 text-sm text-red-500">{errors.amount}</p>}
                             </div>
-                            
+
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">
                                     Payment Date <span className="text-red-500">*</span>
@@ -200,7 +216,7 @@ const PaymentFormPage = () => {
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                             <div>
+                            <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">
                                     Payment Method <span className="text-red-500">*</span>
                                 </label>

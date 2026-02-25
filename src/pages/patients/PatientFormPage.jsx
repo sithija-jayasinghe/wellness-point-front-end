@@ -23,6 +23,7 @@ const PatientFormPage = () => {
         name: '',
         nic: '',
         phone: '',
+        email: '',
         dob: '',
         gender: 'MALE',
         userId: '', // Assuming userId is optional or handled by backend if new
@@ -47,6 +48,7 @@ const PatientFormPage = () => {
                         name: '',
                         nic: '',
                         phone: '',
+                        email: '',
                         dob: '',
                         gender: 'MALE',
                         userId: '',
@@ -94,6 +96,7 @@ const PatientFormPage = () => {
                     name: patient.name || '',
                     nic: patient.nic || '',
                     phone: patient.phone || '',
+                    email: patient.email || '',
                     dob: formattedDob,
                     gender: patient.gender || 'MALE',
                     userId: patient.userId || '',
@@ -169,6 +172,7 @@ const PatientFormPage = () => {
                     name: '',
                     nic: '',
                     phone: '',
+                    email: '',
                     dob: '',
                     gender: 'MALE',
                     userId: '',
@@ -216,6 +220,12 @@ const PatientFormPage = () => {
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
                 <form onSubmit={handleSubmit} className="p-6 space-y-6">
                     <div className="space-y-4">
+                        {/* Email Notification Info Banner */}
+                        <div className="flex items-start gap-3 bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 text-sm text-blue-800">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mt-0.5 shrink-0 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                            <span>Providing an email address enables automatic notifications for appointment confirmations, cancellations, payment receipts, and prescriptions.</span>
+                        </div>
+
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">
                                 Full Name <span className="text-red-500">*</span>
@@ -258,6 +268,20 @@ const PatientFormPage = () => {
                                 />
                                 {errors.phone && <p className="mt-1 text-sm text-red-500">{errors.phone}</p>}
                             </div>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Email Address
+                                <span className="ml-1 text-xs text-gray-400">(for notifications)</span>
+                            </label>
+                            <Input
+                                type="email"
+                                name="email"
+                                value={formData.email}
+                                onChange={handleChange}
+                                placeholder="e.g. patient@example.com"
+                            />
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

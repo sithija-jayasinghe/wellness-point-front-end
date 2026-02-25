@@ -25,6 +25,7 @@ const PrescriptionFormPage = () => {
     const [loading, setLoading] = useState(false);
     const [initialLoading, setInitialLoading] = useState(true);
     const [errors, setErrors] = useState({});
+    const [emailNotificationSent, setEmailNotificationSent] = useState(false);
 
     useEffect(() => {
         if (isEditMode) {
@@ -65,11 +66,11 @@ const PrescriptionFormPage = () => {
         const newItems = [...formData.prescriptionItems];
         newItems[index] = { ...newItems[index], [field]: value };
         setFormData(prev => ({ ...prev, prescriptionItems: newItems }));
-        
+
         // Clear error for this item field if exists
         const errorKey = `items_${index}_${field}`;
-        if(errors[errorKey]) {
-             setErrors(prev => ({ ...prev, [errorKey]: null }));
+        if (errors[errorKey]) {
+            setErrors(prev => ({ ...prev, [errorKey]: null }));
         }
     };
 
@@ -100,7 +101,7 @@ const PrescriptionFormPage = () => {
         });
 
         if (formData.prescriptionItems.length === 0) {
-             newErrors.items = "At least one medicine is required";
+            newErrors.items = "At least one medicine is required";
         }
 
         setErrors(newErrors);
@@ -126,7 +127,8 @@ const PrescriptionFormPage = () => {
                 toast({ title: 'Success', description: 'Prescription updated', variant: 'success' });
             } else {
                 await createPrescription(payload);
-                toast({ title: 'Success', description: 'Prescription created', variant: 'success' });
+                toast({ title: 'Success', description: 'Prescription created — patient notified via email', variant: 'success' });
+                setEmailNotificationSent(true);
             }
             navigate('/prescriptions');
         } catch (err) {
@@ -146,16 +148,31 @@ const PrescriptionFormPage = () => {
                 title={isEditMode ? 'Edit Prescription' : 'New Prescription'}
                 description={isEditMode ? 'Update prescription details.' : 'Create a new prescription.'}
                 actions={
-                    <Button 
-                        variant="outline" 
+                    <Button
+                        variant="outline"
                         className="border-blue-500 text-blue-600 hover:bg-blue-50 hover:text-blue-700"
-                        onClick={() => navigate('/prescriptions')} 
+                        onClick={() => navigate('/prescriptions')}
                         icon={ArrowLeft}
                     >
                         Back to List
                     </Button>
                 }
             />
+
+            {/* Email Notification Banner */}
+            {emailNotificationSent && (
+                <div className="flex items-start gap-3 bg-green-50 border border-green-200 rounded-lg px-4 py-3 text-sm text-green-800">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mt-0.5 shrink-0 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                    <div>
+                        <p className="font-medium">Prescription email sent!</p>
+                        <p className="text-green-700 mt-0.5">The patient has been notified of their prescription details via email.</p>
+                    </div>
+                    <button onClick={() => setEmailNotificationSent(false)} className="ml-auto text-green-600 hover:text-green-800 shrink-0" title="Dismiss">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                </div>
+            )}
+
 
             <form onSubmit={handleSubmit} className="space-y-6">
                 {/* Main Details */}
@@ -207,7 +224,7 @@ const PrescriptionFormPage = () => {
                         {formData.prescriptionItems.map((item, index) => (
                             <div key={index} className="flex flex-col md:flex-row gap-3 items-start md:items-center bg-gray-50 p-3 rounded-lg border border-gray-100">
                                 <span className="text-sm font-bold text-gray-400 w-6 pt-2 md:pt-0">#{index + 1}</span>
-                                
+
                                 <div className="flex-1 w-full">
                                     <Input
                                         placeholder="Medicine Name"
@@ -217,7 +234,7 @@ const PrescriptionFormPage = () => {
                                     />
                                     {errors[`items_${index}_medicineName`] && <span className="text-xs text-red-500">Required</span>}
                                 </div>
-                                
+
                                 <div className="w-full md:w-1/4">
                                     <Input
                                         placeholder="Dosage (e.g. 500mg)"
@@ -235,13 +252,13 @@ const PrescriptionFormPage = () => {
                                         onChange={(e) => handleItemChange(index, 'duration', e.target.value)}
                                         className={errors[`items_${index}_duration`] ? 'border-red-300' : ''}
                                     />
-                                     {errors[`items_${index}_duration`] && <span className="text-xs text-red-500">Required</span>}
+                                    {errors[`items_${index}_duration`] && <span className="text-xs text-red-500">Required</span>}
                                 </div>
 
-                                <Button 
-                                    type="button" 
-                                    variant="ghost" 
-                                    size="sm" 
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
                                     onClick={() => removeItem(index)}
                                     className="text-red-500 hover:text-red-700 hover:bg-red-50"
                                     disabled={formData.prescriptionItems.length === 1}

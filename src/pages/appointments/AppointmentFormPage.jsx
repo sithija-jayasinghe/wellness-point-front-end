@@ -37,12 +37,14 @@ const AppointmentFormPage = () => {
         name: '',
         nic: '',
         phone: '',
+        email: '',
         dob: '',
         gender: 'MALE',
         clinics: [] // Add clinics for new patient
     });
     const [newPatientErrors, setNewPatientErrors] = useState({});
     const [creatingPatient, setCreatingPatient] = useState(false);
+    const [emailNotificationSent, setEmailNotificationSent] = useState(false);
 
     const [patients, setPatients] = useState([]);
     const [schedules, setSchedules] = useState([]);
@@ -162,8 +164,12 @@ const AppointmentFormPage = () => {
             setCreatingPatient(true);
 
             // Format data for backend
+            // Only include email/dob if provided — backend @Valid rejects empty strings for these fields
+            const { email: patientEmail, dob: patientDob, ...restPatientData } = newPatientData;
             const payload = {
-                ...newPatientData,
+                ...restPatientData,
+                ...(patientEmail && patientEmail.trim() ? { email: patientEmail.trim() } : {}),
+                ...(patientDob && patientDob.trim() ? { dob: patientDob.trim() } : {}),
                 // Ensure clinics is mapped to object array required by backend
                 clinics: newPatientData.clinics && newPatientData.clinics.length > 0
                     ? newPatientData.clinics.map(id => ({ id }))
@@ -186,7 +192,7 @@ const AppointmentFormPage = () => {
             }
 
             // Reset and close
-            setNewPatientData({ name: '', nic: '', phone: '', dob: '', gender: 'MALE', clinics: [] });
+            setNewPatientData({ name: '', nic: '', phone: '', email: '', dob: '', gender: 'MALE', clinics: [] });
             setIsPatientModalOpen(false);
         } catch (err) {
             console.error('Failed to create patient', err);
@@ -257,6 +263,7 @@ const AppointmentFormPage = () => {
             } else {
                 await bookAppointment(payload);
                 toast({ title: 'Success', description: 'Appointment booked successfully', variant: 'success' });
+                setEmailNotificationSent(true);
                 setFormData({
                     scheduleId: '',
                     patientId: '',
@@ -330,6 +337,20 @@ const AppointmentFormPage = () => {
                     </Button>
                 }
             />
+
+            {/* Email Notification Confirmation Banner */}
+            {emailNotificationSent && (
+                <div className="flex items-start gap-3 bg-green-50 border border-green-200 rounded-lg px-4 py-3 text-sm text-green-800">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mt-0.5 shrink-0 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                    <div>
+                        <p className="font-medium">Email notifications sent!</p>
+                        <p className="text-green-700 mt-0.5">A confirmation email was dispatched to the patient, and the doctor was notified of the new appointment.</p>
+                    </div>
+                    <button onClick={() => setEmailNotificationSent(false)} className="ml-auto text-green-600 hover:text-green-800 shrink-0" title="Dismiss">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                </div>
+            )}
 
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
                 <form onSubmit={handleSubmit} className="p-6 space-y-6">
@@ -531,6 +552,20 @@ const AppointmentFormPage = () => {
                                     />
                                     {newPatientErrors.phone && <p className="mt-1 text-sm text-red-500">{newPatientErrors.phone}</p>}
                                 </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Email Address
+                                    <span className="ml-1 text-xs text-gray-400">(for email notifications)</span>
+                                </label>
+                                <Input
+                                    type="email"
+                                    name="email"
+                                    value={newPatientData.email}
+                                    onChange={handleNewPatientChange}
+                                    placeholder="e.g. patient@example.com"
+                                />
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">

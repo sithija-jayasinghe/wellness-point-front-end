@@ -9,11 +9,11 @@ import PageHeader from '../../components/PageHeader';
 import Button from '../../components/Button';
 import Input from '../../components/Input';
 import {
-  Table,
-  TableHeader,
-  TableBody,
-  TableRow,
-  TableHead,
+    Table,
+    TableHeader,
+    TableBody,
+    TableRow,
+    TableHead,
 } from '../../components/Table';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import { useToast } from '../../components/useToast';
@@ -27,7 +27,7 @@ const AppointmentsListPage = () => {
     const { toast } = useToast();
     const { user } = useAuth();
     const isPatient = user?.role === 'PATIENT';
-    
+
     const [appointments, setAppointments] = useState([]);
     const [schedules, setSchedules] = useState([]);
     const [doctors, setDoctors] = useState([]);
@@ -35,7 +35,7 @@ const AppointmentsListPage = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
-    
+
     const [actionId, setActionId] = useState(null);
     const [actionType, setActionType] = useState(null); // 'delete', 'cancel', 'complete'
     const [processing, setProcessing] = useState(false);
@@ -43,7 +43,7 @@ const AppointmentsListPage = () => {
     // Helper to parse date data into Date object
     const getAppointmentDateObj = (dateData) => {
         if (!dateData) return null;
-        
+
         let dateObj;
         if (Array.isArray(dateData)) {
             const [year, month, day, hour, minute, second = 0] = dateData;
@@ -67,7 +67,7 @@ const AppointmentsListPage = () => {
     const canComplete = (dateData) => {
         const apptDate = getAppointmentDateObj(dateData);
         if (!apptDate) return false;
-        
+
         const now = new Date();
         return now >= apptDate;
     };
@@ -116,7 +116,7 @@ const AppointmentsListPage = () => {
 
     const handleAction = async () => {
         if (!actionId || !actionType) return;
-        
+
         try {
             setProcessing(true);
             if (actionType === 'delete') {
@@ -125,17 +125,17 @@ const AppointmentsListPage = () => {
                 setAppointments(prev => prev.filter(item => item.id !== actionId));
             } else if (actionType === 'cancel') {
                 await cancelAppointment(actionId);
-                toast({ title: 'Success', description: 'Appointment cancelled', variant: 'success' });
+                toast({ title: 'Success', description: 'Appointment cancelled — patient notified via email', variant: 'success' });
                 // Optimistic update
-                 setAppointments(prev => prev.map(item => item.id === actionId ? { ...item, status: 'CANCELLED' } : item));
-                 // Refresh to be sure
-                 fetchAppointments();
+                setAppointments(prev => prev.map(item => item.id === actionId ? { ...item, status: 'CANCELLED' } : item));
+                // Refresh to be sure
+                fetchAppointments();
             } else if (actionType === 'complete') {
                 await completeAppointment(actionId);
                 toast({ title: 'Success', description: 'Appointment completed', variant: 'success' });
                 // Optimistic update
-                 setAppointments(prev => prev.map(item => item.id === actionId ? { ...item, status: 'COMPLETED' } : item));
-                 fetchAppointments();
+                setAppointments(prev => prev.map(item => item.id === actionId ? { ...item, status: 'COMPLETED' } : item));
+                fetchAppointments();
             }
         } catch (err) {
             console.error(`Failed to ${actionType} appointment`, err);
@@ -150,7 +150,7 @@ const AppointmentsListPage = () => {
             setActionType(null);
         }
     };
-    
+
     const openConfirm = (id, type) => {
         setActionId(id);
         setActionType(type);
@@ -159,7 +159,7 @@ const AppointmentsListPage = () => {
     // Helper to resolve doctor name
     const getDoctorName = (apt) => {
         if (apt.doctor && apt.doctor.name) return apt.doctor.name;
-        
+
         if (apt.scheduleId) {
             const schedule = schedules.find(s => s.id === apt.scheduleId);
             if (schedule && schedule.doctorId) {
@@ -173,7 +173,7 @@ const AppointmentsListPage = () => {
     // Helper to resolve patient name
     const getPatientName = (apt) => {
         if (apt.patientName) return apt.patientName;
-        
+
         if (apt.patientId) {
             const patient = patients.find(p => p.id === apt.patientId);
             if (patient) {
@@ -189,30 +189,30 @@ const AppointmentsListPage = () => {
         const doctorName = getDoctorName(apt).toLowerCase();
         const patientName = getPatientName(apt).toLowerCase();
 
-        return String(apt.id).includes(search) || 
-               String(apt.status).toLowerCase().includes(search) ||
-               String(apt.patientId).includes(search) ||
-               patientName.includes(search) ||
-               String(apt.scheduleId).includes(search) ||
-               doctorName.includes(search);
+        return String(apt.id).includes(search) ||
+            String(apt.status).toLowerCase().includes(search) ||
+            String(apt.patientId).includes(search) ||
+            patientName.includes(search) ||
+            String(apt.scheduleId).includes(search) ||
+            doctorName.includes(search);
     });
 
     if (loading) return <Spinner fullScreen />;
-    
+
     if (error) return (
         <div className="p-8">
-            <ErrorState 
-                title="Something went wrong" 
-                message={error} 
-                onRetry={fetchAppointments} 
+            <ErrorState
+                title="Something went wrong"
+                message={error}
+                onRetry={fetchAppointments}
             />
         </div>
     );
 
     return (
         <div className="space-y-6">
-            <PageHeader 
-                title="Appointments" 
+            <PageHeader
+                title="Appointments"
                 description="Manage patient appointments."
                 actions={
                     <div className="flex items-center gap-2">
@@ -230,8 +230,8 @@ const AppointmentsListPage = () => {
                 <div className="p-4 border-b border-gray-100 bg-gray-50/50">
                     <div className="relative max-w-sm">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                        <Input 
-                            placeholder="Search ID, Status, Doctor..." 
+                        <Input
+                            placeholder="Search ID, Status, Doctor..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             className="pl-9"
@@ -241,7 +241,7 @@ const AppointmentsListPage = () => {
 
                 {filteredAppointments.length === 0 ? (
                     <div className="p-12">
-                        <EmptyState 
+                        <EmptyState
                             title={searchTerm ? "No appointments found" : "No appointments yet"}
                             description={searchTerm ? "Try adjusting your search terms" : "Get started by booking a new appointment"}
                             icon={Calendar}
@@ -276,18 +276,17 @@ const AppointmentsListPage = () => {
                                         {formatDateTime(apt.appointmentTime)}
                                     </td>
                                     <td className="p-4">
-                                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                            (apt.status && apt.status.toUpperCase() === 'COMPLETED') ? 'bg-green-100 text-green-800' :
-                                            (apt.status && apt.status.toUpperCase() === 'CANCELLED') ? 'bg-red-100 text-red-800' :
-                                            'bg-blue-100 text-blue-800'
-                                        }`}>
+                                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${(apt.status && apt.status.toUpperCase() === 'COMPLETED') ? 'bg-green-100 text-green-800' :
+                                                (apt.status && apt.status.toUpperCase() === 'CANCELLED') ? 'bg-red-100 text-red-800' :
+                                                    'bg-blue-100 text-blue-800'
+                                            }`}>
                                             {apt.status}
                                         </span>
                                     </td>
                                     <td className="p-4 text-right">
                                         <div className="flex items-center justify-end gap-2">
-                                            <Button 
-                                                variant="ghost" 
+                                            <Button
+                                                variant="ghost"
                                                 size="sm"
                                                 onClick={() => navigate(`/appointments/${apt.id}`)}
                                                 className="h-8 w-8 p-0 text-gray-500 hover:text-blue-600"
@@ -295,8 +294,8 @@ const AppointmentsListPage = () => {
                                             >
                                                 <Eye className="h-4 w-4" />
                                             </Button>
-                                            <Button 
-                                                variant="ghost" 
+                                            <Button
+                                                variant="ghost"
                                                 size="sm"
                                                 onClick={() => navigate(`/appointments/${apt.id}/edit`)}
                                                 className="h-8 w-8 p-0 text-gray-500 hover:text-blue-600"
@@ -304,8 +303,8 @@ const AppointmentsListPage = () => {
                                             >
                                                 <Edit className="h-4 w-4" />
                                             </Button>
-                                            <Button 
-                                                variant="ghost" 
+                                            <Button
+                                                variant="ghost"
                                                 size="sm"
                                                 onClick={() => openConfirm(apt.id, 'complete')}
                                                 disabled={!canComplete(apt.appointmentTime)}
@@ -314,8 +313,8 @@ const AppointmentsListPage = () => {
                                             >
                                                 <Check className="h-4 w-4" />
                                             </Button>
-                                            <Button 
-                                                variant="ghost" 
+                                            <Button
+                                                variant="ghost"
                                                 size="sm"
                                                 onClick={() => openConfirm(apt.id, 'cancel')}
                                                 className="h-8 w-8 p-0 text-gray-500 hover:text-orange-600"
@@ -323,8 +322,8 @@ const AppointmentsListPage = () => {
                                             >
                                                 <X className="h-4 w-4" />
                                             </Button>
-                                            <Button 
-                                                variant="ghost" 
+                                            <Button
+                                                variant="ghost"
                                                 size="sm"
                                                 onClick={() => openConfirm(apt.id, 'delete')}
                                                 className="h-8 w-8 p-0 text-gray-500 hover:text-red-600"
@@ -341,16 +340,16 @@ const AppointmentsListPage = () => {
                 )}
             </div>
 
-            <ConfirmDialog 
-                open={!!actionId} 
+            <ConfirmDialog
+                open={!!actionId}
                 title={
                     actionType === 'delete' ? "Delete Appointment" :
-                    actionType === 'cancel' ? "Cancel Appointment" : "Complete Appointment"
+                        actionType === 'cancel' ? "Cancel Appointment" : "Complete Appointment"
                 }
                 message={
                     actionType === 'delete' ? "Are you sure you want to delete this appointment? This action cannot be undone." :
-                    actionType === 'cancel' ? "Are you sure you want to cancel this appointment?" :
-                    "Are you sure you want to mark this appointment as completed?"
+                        actionType === 'cancel' ? "Are you sure you want to cancel this appointment?" :
+                            "Are you sure you want to mark this appointment as completed?"
                 }
                 onConfirm={handleAction}
                 onCancel={() => { setActionId(null); setActionType(null); }}
