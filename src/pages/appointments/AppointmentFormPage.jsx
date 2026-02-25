@@ -9,6 +9,7 @@ import { getAllDoctors } from '../../api/doctors.api';
 import { getAllClinics } from '../../api/clinics.api';
 import { getUser } from '../../auth/authStorage';
 import { getAllSchedules } from '../../api/schedules.api';
+import { useAuth } from '../../context/AuthContext';
 import PageHeader from '../../components/PageHeader';
 import Button from '../../components/Button';
 import Input from '../../components/Input';
@@ -22,6 +23,8 @@ const AppointmentFormPage = () => {
     const { id } = useParams();
     const isEditMode = !!id;
     const { toast } = useToast();
+    const { user } = useAuth();
+    const isPatient = user?.role === 'PATIENT';
 
     // Default status changed to UPPERCASE 'BOOKED' to match Backend Enum (BOOKED, CANCELLED, COMPLETED)
     const [formData, setFormData] = useState({
@@ -84,6 +87,18 @@ const AppointmentFormPage = () => {
             setSchedules(schedulesData || []);
             setDoctors(doctorsData || []);
             setClinics(clinicsData || []);
+
+            // Auto-set patientId for logged-in patient
+            if (isPatient && user && patientsData) {
+                const currentPatient = patientsData.find(p =>
+                    (p.userId && (String(p.userId) === String(user.id))) ||
+                    (p.email && p.email === user.email) ||
+                    (p.name && user.name && p.name.toLowerCase() === user.name.toLowerCase())
+                );
+                if (currentPatient) {
+                    setFormData(prev => ({ ...prev, patientId: currentPatient.id }));
+                }
+            }
         } catch (error) {
             console.error("Failed to load dropdown data", error);
         } finally {
@@ -96,6 +111,33 @@ const AppointmentFormPage = () => {
             const appointment = await getAppointmentById(id);
 
             if (appointment) {
+                // 24-hour edit guard for patients based on schedule start time
+                if (isPatient && appointment.scheduleId) {
+                    const schedule = schedules.find(s => s.id === appointment.scheduleId);
+                    const startData = schedule?.startDateTime;
+                    let scheduleStart = null;
+                    if (startData) {
+                        if (Array.isArray(startData)) {
+                            const [year, month, day, hour, minute, second = 0] = startData;
+                            scheduleStart = new Date(year, month - 1, day, hour, minute, second);
+                        } else {
+                            scheduleStart = new Date(startData);
+                        }
+                    }
+                    if (scheduleStart && !isNaN(scheduleStart.getTime())) {
+                        const hoursUntilStart = (scheduleStart - new Date()) / (1000 * 60 * 60);
+                        if (hoursUntilStart <= 24) {
+                            toast({
+                                title: 'Edit Unavailable',
+                                description: 'The editing time for this appointment has expired. Appointments can only be edited up to 24 hours before the scheduled start time.',
+                                variant: 'destructive'
+                            });
+                            navigate('/appointments');
+                            return;
+                        }
+                    }
+                }
+
                 // Helper to safely parse date from Array or String
                 const parseDate = (d) => {
                     if (!d) return null;
@@ -359,31 +401,42 @@ const AppointmentFormPage = () => {
                             <label className="block text-sm font-medium text-gray-700 mb-1">
                                 Patient <span className="text-red-500">*</span>
                             </label>
-                            <div className="flex gap-3">
-                                <div className="flex-1">
-                                    <SearchableSelect
-                                        name="patientId"
-                                        value={formData.patientId}
-                                        onChange={handleChange}
-                                        placeholder="Select Patient..."
-                                        className={errors.patientId ? 'border-red-300 focus:ring-red-500' : ''}
-                                        options={patients.map(p => ({
-                                            value: p.id,
-                                            label: `${p.id} - ${p.name} (${p.phone})`
-                                        }))}
-                                    />
+                            {isPatient ? (
+                                <div className="flex h-10 w-full items-center rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-700">
+                                    {(() => {
+                                        const p = patients.find(pt => pt.id === formData.patientId);
+                                        return p ? `${p.name} (${p.phone})` : 'Loading...';
+                                    })()}
                                 </div>
-                                <Button
-                                    type="button"
-                                    onClick={() => setIsPatientModalOpen(true)}
-                                    icon={Plus}
-                                    variant="outline"
-                                    className="shrink-0"
-                                >
-                                    New Patient
-                                </Button>
-                            </div>
-                            {errors.patientId && <p className="mt-1 text-sm text-red-500">{errors.patientId}</p>}
+                            ) : (
+                                <>
+                                    <div className="flex gap-3">
+                                        <div className="flex-1">
+                                            <SearchableSelect
+                                                name="patientId"
+                                                value={formData.patientId}
+                                                onChange={handleChange}
+                                                placeholder="Select Patient..."
+                                                className={errors.patientId ? 'border-red-300 focus:ring-red-500' : ''}
+                                                options={patients.map(p => ({
+                                                    value: p.id,
+                                                    label: `${p.id} - ${p.name} (${p.phone})`
+                                                }))}
+                                            />
+                                        </div>
+                                        <Button
+                                            type="button"
+                                            onClick={() => setIsPatientModalOpen(true)}
+                                            icon={Plus}
+                                            variant="outline"
+                                            className="shrink-0"
+                                        >
+                                            New Patient
+                                        </Button>
+                                    </div>
+                                    {errors.patientId && <p className="mt-1 text-sm text-red-500">{errors.patientId}</p>}
+                                </>
+                            )}
                         </div>
 
                         <div>

@@ -27,7 +27,8 @@ const AppointmentsListPage = () => {
     const { toast } = useToast();
     const { user } = useAuth();
     const isPatient = user?.role === 'PATIENT';
-
+    const isDoctor = user?.role === 'DOCTOR';
+    
     const [appointments, setAppointments] = useState([]);
     const [schedules, setSchedules] = useState([]);
     const [doctors, setDoctors] = useState([]);
@@ -72,6 +73,25 @@ const AppointmentsListPage = () => {
         return now >= apptDate;
     };
 
+    // Helper to check if appointment can still be edited by a patient (24h before schedule start)
+    const canPatientEdit = (apt) => {
+        if (!isPatient) return true;
+        // Find the schedule linked to this appointment
+        const schedule = schedules.find(s => s.id === apt.scheduleId);
+        const startData = schedule?.startDateTime;
+        if (!startData) {
+            // Fallback to appointmentTime if schedule not found
+            const apptDate = getAppointmentDateObj(apt.appointmentTime);
+            if (!apptDate) return false;
+            return (apptDate - new Date()) / (1000 * 60 * 60) > 24;
+        }
+        const scheduleStart = getAppointmentDateObj(startData);
+        if (!scheduleStart) return false;
+        const now = new Date();
+        const hoursUntilStart = (scheduleStart - now) / (1000 * 60 * 60);
+        return hoursUntilStart > 24;
+    };
+
     useEffect(() => {
         fetchAppointments();
     }, []);
@@ -95,6 +115,28 @@ const AppointmentsListPage = () => {
                 );
                 if (currentPatient) {
                     setAppointments(appointmentsData.filter(apt => apt.patientId === currentPatient.id));
+                } else {
+                    setAppointments([]);
+                }
+            } else if (isDoctor) {
+                // Find the doctor record matching the logged-in user
+                const currentUserId = user.id || user.userId;
+                const currentDoctor = doctorsData.find(d => {
+                    const docUserId = d.user?.id || d.user?.userId;
+                    if (currentUserId && docUserId) {
+                        return String(currentUserId) === String(docUserId);
+                    }
+                    return (d.name && d.name === user.username) ||
+                           (d.username && d.username === user.username) ||
+                           (d.email && d.email === user.email);
+                });
+                if (currentDoctor) {
+                    // Get schedule IDs belonging to this doctor
+                    const doctorScheduleIds = schedulesData
+                        .filter(s => s.doctorId === currentDoctor.id)
+                        .map(s => s.id);
+                    // Filter appointments to only those linked to doctor's schedules
+                    setAppointments(appointmentsData.filter(apt => doctorScheduleIds.includes(apt.scheduleId)));
                 } else {
                     setAppointments([]);
                 }
@@ -219,9 +261,11 @@ const AppointmentsListPage = () => {
                         <Button variant="outline" onClick={fetchAppointments} title="Refresh List" icon={RefreshCw}>
                             Refresh
                         </Button>
-                        <Button onClick={() => navigate('/appointments/new')} icon={Plus}>
-                            Book Appointment
-                        </Button>
+                        {!isDoctor && (
+                            <Button onClick={() => navigate('/appointments/new')} icon={Plus}>
+                                Book Appointment
+                            </Button>
+                        )}
                     </div>
                 }
             />
@@ -245,7 +289,7 @@ const AppointmentsListPage = () => {
                             title={searchTerm ? "No appointments found" : "No appointments yet"}
                             description={searchTerm ? "Try adjusting your search terms" : "Get started by booking a new appointment"}
                             icon={Calendar}
-                            action={!searchTerm && (
+                            action={!searchTerm && !isDoctor && (
                                 <Button onClick={() => navigate('/appointments/new')} variant="outline">
                                     Book Appointment
                                 </Button>
@@ -294,17 +338,33 @@ const AppointmentsListPage = () => {
                                             >
                                                 <Eye className="h-4 w-4" />
                                             </Button>
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() => navigate(`/appointments/${apt.id}/edit`)}
-                                                className="h-8 w-8 p-0 text-gray-500 hover:text-blue-600"
-                                                title="Edit"
-                                            >
-                                                <Edit className="h-4 w-4" />
-                                            </Button>
-                                            <Button
-                                                variant="ghost"
+                                            {!isDoctor && (
+                                                <Button 
+                                                    variant="ghost" 
+                                                    size="sm"
+                                                    onClick={() => {
+                                                        if (!canPatientEdit(apt)) {
+                                                            toast({
+                                                                title: 'Edit Unavailable',
+                                                                description: 'The editing time for this appointment has expired. Appointments can only be edited up to 24 hours before the scheduled start time.',
+                                                                variant: 'destructive'
+                                                            });
+                                                            return;
+                                                        }
+                                                        navigate(`/appointments/${apt.id}/edit`);
+                                                    }}
+                                                    className={`h-8 w-8 p-0 ${
+                                                        !canPatientEdit(apt)
+                                                            ? 'text-gray-300 cursor-not-allowed'
+                                                            : 'text-gray-500 hover:text-blue-600'
+                                                    }`}
+                                                    title={!canPatientEdit(apt) ? 'Editing time has expired (must be 24h before scheduled start)' : 'Edit'}
+                                                >
+                                                    <Edit className="h-4 w-4" />
+                                                </Button>
+                                            )}
+                                            <Button 
+                                                variant="ghost" 
                                                 size="sm"
                                                 onClick={() => openConfirm(apt.id, 'complete')}
                                                 disabled={!canComplete(apt.appointmentTime)}
@@ -322,15 +382,17 @@ const AppointmentsListPage = () => {
                                             >
                                                 <X className="h-4 w-4" />
                                             </Button>
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() => openConfirm(apt.id, 'delete')}
-                                                className="h-8 w-8 p-0 text-gray-500 hover:text-red-600"
-                                                title="Delete"
-                                            >
-                                                <Trash2 className="h-4 w-4" />
-                                            </Button>
+                                            {!isDoctor && !isPatient && (
+                                                <Button 
+                                                    variant="ghost" 
+                                                    size="sm"
+                                                    onClick={() => openConfirm(apt.id, 'delete')}
+                                                    className="h-8 w-8 p-0 text-gray-500 hover:text-red-600"
+                                                    title="Delete"
+                                                >
+                                                    <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                            )}
                                         </div>
                                     </td>
                                 </TableRow>

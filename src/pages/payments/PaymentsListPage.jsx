@@ -105,7 +105,18 @@ const PaymentsListPage = () => {
         return dateObj.toLocaleDateString();
     };
 
+    // If patient, find their patient record by matching user.id to patient.userId
+    const currentPatientId = isPatient
+        ? patients.find(p => p.userId === user?.id)?.id
+        : null;
+
     const filteredPayments = payments.filter(p => {
+        // For patients, only show their own payments
+        if (isPatient && currentPatientId) {
+            const appointment = appointments.find(a => a.id === p.appointmentId);
+            if (!appointment || appointment.patientId !== currentPatientId) return false;
+        }
+
         const search = searchTerm.toLowerCase();
         const patientName = getPatientName(p).toLowerCase();
         
