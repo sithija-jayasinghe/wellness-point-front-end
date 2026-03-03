@@ -18,7 +18,8 @@ import {
   Key,
   PlusSquare,
   LogOut,
-  LogIn
+  LogIn,
+  FlaskConical
 } from 'lucide-react';
 import { cn } from '../utils';
 
@@ -38,6 +39,7 @@ const Sidebar = () => {
     { icon: CreditCard, label: 'Payments', path: '/payments' },
     { icon: RotateCcw, label: 'Refunds', path: '/refunds' },
     { icon: Bell, label: 'Notifications', path: '/notifications' },
+    { icon: FlaskConical, label: 'Lab Tests', path: '/lab-tests' },
     { icon: UserCog, label: 'Users', path: '/admin/users' },
     { icon: Shield, label: 'Roles', path: '/admin/roles' },
     { icon: Key, label: 'Permissions', path: '/admin/permissions' },
@@ -72,6 +74,14 @@ const Sidebar = () => {
     { icon: Bell, label: 'Notifications', path: '/notifications' },
   ];
 
+  const labOperatorLinks = [
+    { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
+    { icon: FlaskConical, label: 'Lab Tests', path: '/lab-tests' },
+    { icon: Users, label: 'Patients', path: '/patients' },
+    { icon: Pill, label: 'Prescriptions', path: '/prescriptions' },
+    { icon: Bell, label: 'Notifications', path: '/notifications' },
+  ];
+
   let currentLinks = [];
   if (user) {
     switch (userRole) {
@@ -87,6 +97,9 @@ const Sidebar = () => {
         break;
       case 'PATIENT':
         currentLinks = patientLinks;
+        break;
+      case 'LAB_OPERATOR':
+        currentLinks = labOperatorLinks;
         break;
       default:
         currentLinks = [];

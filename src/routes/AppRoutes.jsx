@@ -10,6 +10,7 @@ import AdminDashboard from '../pages/dashboard/AdminDashboard';
 import DoctorDashboard from '../pages/dashboard/DoctorDashboard';
 import PatientDashboard from '../pages/dashboard/PatientDashboard';
 import ReceptionistDashboard from '../pages/dashboard/ReceptionistDashboard';
+import LabOperatorDashboard from '../pages/dashboard/LabOperatorDashboard';
 
 // Feature Pages
 import ClinicsListPage from '../pages/clinics/ClinicsListPage';
@@ -39,6 +40,8 @@ import UserFormPage from '../pages/users/UserFormPage';
 import RolesListPage from '../pages/roles/RolesListPage';
 import PermissionsListPage from '../pages/permissions/PermissionsListPage';
 import Unauthorized from '../pages/Unauthorized';
+import LabTestsListPage from '../pages/lab-tests/LabTestsListPage';
+import LabTestFormPage from '../pages/lab-tests/LabTestFormPage';
 
 const AppRoutes = () => {
   return (
@@ -81,6 +84,11 @@ const AppRoutes = () => {
         <Route path="patient" element={<ProtectedRoute allowedRoles={['PATIENT']}><Outlet /></ProtectedRoute>}>
             <Route path="dashboard" element={<PatientDashboard />} />
         </Route>
+
+        {/* --- LAB OPERATOR SECTION --- */}
+        <Route path="lab-operator" element={<ProtectedRoute allowedRoles={['LAB_OPERATOR']}><Outlet /></ProtectedRoute>}>
+            <Route path="dashboard" element={<LabOperatorDashboard />} />
+        </Route>
         
         {/* --- SHARED RESOURCES (Keeping flat for shared access) --- */}
         
@@ -100,8 +108,8 @@ const AppRoutes = () => {
              <Route path="/doctors/:id/edit" element={<DoctorFormPage />} />
         </Route>
 
-        {/* PATIENTS (Admin, Reception, Doctor) */}
-        <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'RECEPTIONIST', 'STAFF', 'DOCTOR']}><Outlet /></ProtectedRoute>}>
+        {/* PATIENTS (Admin, Reception, Doctor, Lab Operator) */}
+        <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'RECEPTIONIST', 'STAFF', 'DOCTOR', 'LAB_OPERATOR']}><Outlet /></ProtectedRoute>}>
             <Route path="/patients" element={<PatientsListPage />} />
             <Route path="/patients/new" element={<PatientFormPage />} />
             <Route path="/patients/:id/edit" element={<PatientFormPage />} />
@@ -133,8 +141,14 @@ const AppRoutes = () => {
             <Route path="/consultations/:id/edit" element={<ConsultationFormPage />} />
         </Route>
 
-        {/* PRESCRIPTIONS (Admin, Doctor, Patient, Staff) */}
-        <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'DOCTOR', 'RECEPTIONIST', 'STAFF', 'PATIENT']}><Outlet /></ProtectedRoute>}>
+        {/* LAB TESTS (Admin, Lab Operator, Doctor) */}
+        <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'LAB_OPERATOR', 'DOCTOR']}><Outlet /></ProtectedRoute>}>
+            <Route path="/lab-tests" element={<LabTestsListPage />} />
+            <Route path="/lab-tests/new" element={<LabTestFormPage />} />
+        </Route>
+
+        {/* PRESCRIPTIONS (Admin, Doctor, Patient, Staff, Lab Operator) */}
+        <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'DOCTOR', 'RECEPTIONIST', 'STAFF', 'PATIENT', 'LAB_OPERATOR']}><Outlet /></ProtectedRoute>}>
              <Route path="/prescriptions" element={<PrescriptionsListPage />} />
         </Route>
         <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'DOCTOR']}><Outlet /></ProtectedRoute>}>
