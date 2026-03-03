@@ -81,8 +81,8 @@ const ClinicOverviewModal = ({ clinic, open, onClose }) => {
     ];
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-            <div className="w-full max-w-5xl bg-white rounded-lg shadow-xl ring-1 ring-black ring-opacity-5 max-h-[90vh] flex flex-col overflow-hidden">
+        <div className="fixed inset-0 z-50 flex bg-black/50 backdrop-blur-sm">
+            <div className="w-full h-full bg-white shadow-xl flex flex-col overflow-hidden">
                 {/* Header */}
                 <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-white">
                     <div className="flex items-center gap-3">
@@ -297,47 +297,47 @@ const DoctorsTab = ({ doctors, schedules, loading }) => {
                 <p className="text-sm text-gray-400 text-center py-6">No doctors match your search</p>
             )}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {filteredDoctors.map((doctor) => {
-                const displayName = doctor.name?.startsWith('Dr.') ? doctor.name : `Dr. ${doctor.name}`;
-                const isActive = doctor.status === 'ACTIVE' || doctor.status === 'Active';
-                const doctorScheduleCount = schedules.filter(s => s.doctorId === doctor.id).length;
+                {filteredDoctors.map((doctor) => {
+                    const displayName = doctor.name?.startsWith('Dr.') ? doctor.name : `Dr. ${doctor.name}`;
+                    const isActive = doctor.status === 'ACTIVE' || doctor.status === 'Active';
+                    const doctorScheduleCount = schedules.filter(s => s.doctorId === doctor.id).length;
 
-                return (
-                    <div key={doctor.id} className="rounded-md border border-gray-200 overflow-hidden">
-                        <div className="flex items-center justify-between p-3 hover:bg-gray-50 transition-colors">
-                            <div className="flex items-center gap-3">
-                                <div className="h-9 w-9 rounded-full bg-cyan-100 flex items-center justify-center">
-                                    <Stethoscope className="h-4 w-4 text-cyan-600" />
+                    return (
+                        <div key={doctor.id} className="rounded-md border border-gray-200 overflow-hidden">
+                            <div className="flex items-center justify-between p-3 hover:bg-gray-50 transition-colors">
+                                <div className="flex items-center gap-3">
+                                    <div className="h-9 w-9 rounded-full bg-cyan-100 flex items-center justify-center">
+                                        <Stethoscope className="h-4 w-4 text-cyan-600" />
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-medium text-gray-900">{displayName}</p>
+                                        <p className="text-xs text-gray-500">{doctor.specialization || 'General'}</p>
+                                    </div>
                                 </div>
-                                <div>
-                                    <p className="text-sm font-medium text-gray-900">{displayName}</p>
-                                    <p className="text-xs text-gray-500">{doctor.specialization || 'General'}</p>
+                                <div className="flex items-center gap-2">
+                                    {doctor.consultationFee != null && (
+                                        <span className="text-xs text-gray-500 flex items-center gap-0.5">
+                                            <p>LKR</p>
+                                            {Number(doctor.consultationFee).toLocaleString()}
+                                        </span>
+                                    )}
+                                    <span className={cn(
+                                        'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium',
+                                        isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
+                                    )}>
+                                        {isActive ? 'Active' : 'Inactive'}
+                                    </span>
+                                    {doctorScheduleCount > 0 && (
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-cyan-50 text-cyan-700">
+                                            <CalendarDays className="h-3 w-3" />
+                                            {doctorScheduleCount}
+                                        </span>
+                                    )}
                                 </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                {doctor.consultationFee != null && (
-                                    <span className="text-xs text-gray-500 flex items-center gap-0.5">
-                                        <p>LKR</p>
-                                        {Number(doctor.consultationFee).toLocaleString()}
-                                    </span>
-                                )}
-                                <span className={cn(
-                                    'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium',
-                                    isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
-                                )}>
-                                    {isActive ? 'Active' : 'Inactive'}
-                                </span>
-                                {doctorScheduleCount > 0 && (
-                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-cyan-50 text-cyan-700">
-                                        <CalendarDays className="h-3 w-3" />
-                                        {doctorScheduleCount}
-                                    </span>
-                                )}
                             </div>
                         </div>
-                    </div>
-                );
-            })}
+                    );
+                })}
             </div>
         </div>
     );
