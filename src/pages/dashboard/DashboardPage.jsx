@@ -26,6 +26,8 @@ const DashboardRedirector = () => {
             return <Navigate to="/reception/dashboard" replace />;
         case 'PATIENT':
             return <Navigate to="/patient/dashboard" replace />;
+        case 'LAB_OPERATOR':
+            return <Navigate to="/lab-operator/dashboard" replace />;
         default:
             console.warn("Unknown Role:", role);
             return <Navigate to="/unauthorized" replace />;
