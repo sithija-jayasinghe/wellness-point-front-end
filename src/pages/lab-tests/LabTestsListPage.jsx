@@ -20,6 +20,7 @@ import Spinner from '../../components/Spinner';
 import EmptyState from '../../components/EmptyState';
 import ErrorState from '../../components/ErrorState';
 import { useAuth } from '../../context/AuthContext';
+import RequestLabReportModal from './RequestLabReportModal';
 
 const STATUS_OPTIONS = ['REQUESTED', 'SAMPLE_COLLECTED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'];
 
@@ -28,6 +29,8 @@ const LabTestsListPage = () => {
     const { toast } = useToast();
     const { user } = useAuth();
     const isAdmin = user?.role === 'ADMIN';
+    const isDoctor = user?.role === 'DOCTOR';
+    const [showRequestModal, setShowRequestModal] = useState(false);
 
     const [labTests, setLabTests] = useState([]);
     const [patients, setPatients] = useState([]);
@@ -137,8 +140,15 @@ const LabTestsListPage = () => {
         try {
             setProcessing(true);
             const updated = await updateLabTestResult(updatingResult.id, resultForm.result, resultForm.notes);
-            toast({ title: 'Success', description: 'Lab test result updated', variant: 'success' });
-            setLabTests(prev => prev.map(t => t.id === updatingResult.id ? updated : t));
+            // Auto-complete the test when a result is entered
+            let finalTest = updated;
+            try {
+                finalTest = await updateLabTestStatus(updatingResult.id, 'COMPLETED');
+            } catch (statusErr) {
+                console.warn('Could not auto-complete status:', statusErr);
+            }
+            toast({ title: 'Result Saved', description: 'Lab result recorded and test marked as Completed.', variant: 'success' });
+            setLabTests(prev => prev.map(t => t.id === updatingResult.id ? finalTest : t));
             setUpdatingResult(null);
             setResultForm({ result: '', notes: '' });
         } catch (err) {
@@ -186,7 +196,19 @@ const LabTestsListPage = () => {
                 actions={
                     <div className="flex gap-2">
                         <Button variant="outline" onClick={fetchData} icon={RefreshCw}>Refresh</Button>
-                        <Button onClick={() => navigate('/lab-tests/new')} icon={FlaskConical}>New Lab Test</Button>
+                        {(isDoctor || isAdmin) && (
+                            <Button
+                                variant="outline"
+                                className="border-cyan-400 text-cyan-700 hover:bg-cyan-50"
+                                onClick={() => setShowRequestModal(true)}
+                                icon={FlaskConical}
+                            >
+                                Request Lab Report
+                            </Button>
+                        )}
+                        {isAdmin && (
+                            <Button onClick={() => navigate('/lab-tests/new')} icon={FlaskConical}>New Lab Test</Button>
+                        )}
                     </div>
                 }
             />
@@ -246,7 +268,7 @@ const LabTestsListPage = () => {
                             </TableHeader>
                             <TableBody>
                                 {filteredTests.map((test) => (
-                                    <TableRow key={test.id}>
+                                    <TableRow key={test.id} className={test.status === 'REQUESTED' ? 'bg-amber-50/40' : ''}>
                                         <td className="px-4 py-3 text-sm font-medium text-gray-900">{test.testName}</td>
                                         <td className="px-4 py-3 text-sm text-gray-500">{test.testCode || '-'}</td>
                                         <td className="px-4 py-3 text-sm text-gray-700">{getPatientName(test.patientId)}</td>
@@ -422,6 +444,15 @@ const LabTestsListPage = () => {
                 onConfirm={handleDelete}
                 onCancel={() => setDeleteId(null)}
                 loading={processing}
+            />
+
+            {/* Request Lab Report Modal (Doctor) */}
+            <RequestLabReportModal
+                open={showRequestModal}
+                onClose={() => setShowRequestModal(false)}
+                onSuccess={(newTest) => {
+                    setLabTests(prev => [newTest, ...prev]);
+                }}
             />
         </div>
     );

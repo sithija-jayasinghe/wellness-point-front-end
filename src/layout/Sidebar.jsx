@@ -19,7 +19,8 @@ import {
   PlusSquare,
   LogOut,
   LogIn,
-  FlaskConical
+  FlaskConical,
+  Activity
 } from 'lucide-react';
 import { cn } from '../utils';
 
@@ -29,6 +30,7 @@ const Sidebar = () => {
 
   const adminLinks = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
+    { icon: Activity, label: 'Live Queue', path: '/queue' },
     { icon: Building2, label: 'Clinics', path: '/clinics' },
     { icon: Stethoscope, label: 'Doctors', path: '/doctors' },
     { icon: Users, label: 'Patients', path: '/patients' },
@@ -47,6 +49,7 @@ const Sidebar = () => {
 
   const doctorLinks = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
+    { icon: Activity, label: 'Live Queue', path: '/queue' },
     { icon: Calendar, label: 'Schedules', path: '/schedules' },
     { icon: Clock, label: 'Appointments', path: '/appointments' },
     { icon: Bell, label: 'Notifications', path: '/notifications' },
@@ -54,6 +57,7 @@ const Sidebar = () => {
 
   const receptionLinks = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
+    { icon: Activity, label: 'Live Queue', path: '/queue' },
     { icon: Building2, label: 'Clinics', path: '/clinics' },
     { icon: Stethoscope, label: 'Doctors', path: '/doctors' },
     { icon: Users, label: 'Patients', path: '/patients' },
