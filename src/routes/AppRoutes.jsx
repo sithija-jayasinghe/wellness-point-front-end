@@ -42,6 +42,7 @@ import PermissionsListPage from '../pages/permissions/PermissionsListPage';
 import Unauthorized from '../pages/Unauthorized';
 import LabTestsListPage from '../pages/lab-tests/LabTestsListPage';
 import LabTestFormPage from '../pages/lab-tests/LabTestFormPage';
+import LiveQueuePage from '../pages/live-queue/LiveQueuePage';
 
 const AppRoutes = () => {
   return (
@@ -132,6 +133,11 @@ const AppRoutes = () => {
         </Route>
         <Route path="/appointments/new" element={<AppointmentFormPage />} />
         <Route path="/appointments/:id/edit" element={<AppointmentFormPage />} />
+
+        {/* LIVE QUEUE (Admin, Doctor, Reception) */}
+        <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'RECEPTIONIST', 'STAFF', 'DOCTOR']}><Outlet /></ProtectedRoute>}>
+            <Route path="/queue" element={<LiveQueuePage />} />
+        </Route>
 
 
         {/* CONSULTATIONS (Admin, Doctor) */}
