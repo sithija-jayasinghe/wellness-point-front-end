@@ -5,6 +5,15 @@ export const getAllDoctors = async () => {
     return response.data;
 };
 
+export const getDoctorById = async (id) => {
+    const response = await http.get('/api/doctors/get-all');
+    const doctor = response.data.find(
+        (d) => String(d.id) === String(id)
+    );
+    if (!doctor) throw new Error(`Doctor with id ${id} not found`);
+    return doctor;
+};
+
 export const createDoctor = async (data) => {
     const response = await http.post('/api/doctors/register', data);
     return response.data;
