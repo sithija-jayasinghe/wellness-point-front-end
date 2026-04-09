@@ -231,7 +231,13 @@ const DoctorsListPage = () => {
                                 return (
                                     <TableRow key={doctor.id}>
                                         <td className="px-6 py-4">
-                                            <div className="font-medium text-gray-900">{displayName}</div>
+                                            <div 
+                                                className="font-medium text-gray-900 hover:text-cyan-600 cursor-pointer transition-colors"
+                                                onClick={() => navigate(`/doctors/${doctor.id}`)}
+                                                title="View Doctor Profile"
+                                            >
+                                                {displayName}
+                                            </div>
                                         </td>
                                         <td className="px-6 py-4 text-gray-600">
                                             <div className="flex flex-wrap gap-1">

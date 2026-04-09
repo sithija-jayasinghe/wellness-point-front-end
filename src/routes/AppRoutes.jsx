@@ -17,6 +17,7 @@ import ClinicsListPage from '../pages/clinics/ClinicsListPage';
 import ClinicFormPage from '../pages/clinics/ClinicFormPage';
 import DoctorsListPage from '../pages/doctors/DoctorsListPage';
 import DoctorFormPage from '../pages/doctors/DoctorFormPage';
+import DoctorProfilePage from '../pages/doctors/DoctorProfilePage';
 import PatientsListPage from '../pages/patients/PatientsListPage';
 import PatientFormPage from '../pages/patients/PatientFormPage';
 import PatientHistoryPage from '../pages/patients/PatientHistoryPage';
@@ -100,9 +101,10 @@ const AppRoutes = () => {
             <Route path="/clinics/:id/edit" element={<ClinicFormPage />} />
         </Route>
 
-        {/* DOCTORS (Admin, Reception, Patient) */}
-        <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'RECEPTIONIST', 'STAFF', 'PATIENT']}><Outlet /></ProtectedRoute>}>
+        {/* DOCTORS (Admin, Reception, Patient, Doctor) */}
+        <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'RECEPTIONIST', 'STAFF', 'PATIENT', 'DOCTOR']}><Outlet /></ProtectedRoute>}>
              <Route path="/doctors" element={<DoctorsListPage />} />
+             <Route path="/doctors/:id" element={<DoctorProfilePage />} />
         </Route>
         <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'RECEPTIONIST', 'STAFF']}><Outlet /></ProtectedRoute>}>
              <Route path="/doctors/new" element={<DoctorFormPage />} />
